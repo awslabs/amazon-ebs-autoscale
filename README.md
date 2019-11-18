@@ -56,3 +56,7 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
     ]
 }
 ```
+
+## License Summary
+
+This sample code is made available under the MIT license. 
