@@ -1,6 +1,6 @@
 # upstart configuration
-description "A process to monitor disk usage by the docker and add EBS volumes to it as necessary"
-author "angel pizarro"
+description "A process to monitor disk usage and add EBS volumes as needed"
+author "Amazon Web Services, Inc."
 
 env MOUNTPOINT=YOUR_MOUNTPOINT
 
@@ -10,14 +10,14 @@ stop on shutdown
 
 script
     echo $$ >> /var/run/ebs-autoscale.pid
-    exec /usr/local/bin/ebs-autoscale  ${MOUNTPOINT} >> /var/log/ebs-autoscale.log 2>&1
+    exec /usr/local/bin/ebs-autoscale ${MOUNTPOINT} >> /var/log/ebs-autoscale.log 2>&1
 end script
 
 pre-start script
-    echo "[`date`] Starting Docker EBS autoscaling" >> /var/log/ebs-autoscale.log
+    echo "[`date`] Starting EBS autoscaling" >> /var/log/ebs-autoscale.log
 end script
 
 pre-stop script
     rm -f /var/run/ebs-autoscale.pid
-    echo "[`date`] Stopping Docker EBS autoscaling" >> /var/log/ebs-autoscale.log
+    echo "[`date`] Stopping EBS autoscaling" >> /var/log/ebs-autoscale.log
 end script
