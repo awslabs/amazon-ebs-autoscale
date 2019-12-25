@@ -16,11 +16,11 @@
 #  this software without specific prior written permission.
 #
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-#  BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  "AS IS" AND ANY EXPRESS OR IMOUNTPPOINTLIED WARRANTIES, INCLUDING,
+#  BUT NOT LIMITED TO, THE IMOUNTPPOINTLIED WARRANTIES OF MERCHANTABILITY AND
 #  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
 #  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  INDIRECT, INCIDENTAL, SPECIAL, EXEMOUNTPPOINTLARY, OR CONSEQUENTIAL DAMAGES
 #  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 #  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 #  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
@@ -39,12 +39,12 @@ if [ "$#" -lt "1" ]; then
 fi
 
 
-MP=$1
-DV=$2
+MOUNTPOINT=$1
+DEVICE=$2
 
-AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
-RG=$(echo ${AZ} | sed -e 's/[a-z]$//')
-IN=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
+# AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
+# RG=$(echo ${AZ} | sed -e 's/[a-z]$//')
+# INSTANCE_ID=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
 BASEDIR=$(dirname $0)
 
 # copy the binaries to /usr/local/bin
@@ -52,28 +52,28 @@ cp ${BASEDIR}/{create-ebs-volume.py,ebs-autoscale} /usr/local/bin/
 
 # If a device is not given, or if the device is not valid
 # create a new 20GB volume
-if [ -z "${DV}" ] || [ ! -b "${DV}" ]; then
-  DV=$(create-ebs-volume.py --size 20)
+if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
+  DEVICE=$(create-ebs-volume.py --size 20)
 fi
 
 # create the BTRFS filesystem
-mkfs.btrfs -f -d single $DV
+mkfs.btrfs -f -d single $DEVICE
 
-if [ -e $MP ] && ! [ -d $MP ]; then
-  echo "ERR: $MP exists but is not a directory."
+if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
+  echo "ERROR: $MOUNTPOINT exists but is not a directory."
   exit 1
-elif ! [ -e $MP ]; then
-  mkdir -p $MP
+elif ! [ -e $MOUNTPOINT ]; then
+  mkdir -p $MOUNTPOINT
 fi
-mount $DV $MP
+mount $DEVICE $MOUNTPOINT
 
-echo -e "${DV}\t${MP}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
+echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
 
-# go to the template directory
+# go to the temOUNTpPOINTlate directory
 cd ${BASEDIR}/../templates
 
 # install the upstart config
-sed -e "s#YOUR_MOUNTPOINT#${MP}#" ebs-autoscale.conf.template > /etc/init/ebs-autoscale.conf
+sed -e "s#YOUR_MOUNTPOINT#${MOUNTPOINT}#" ebs-autoscale.conf.template > /etc/init/ebs-autoscale.conf
 
 # install the logrotate config
 cp ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
