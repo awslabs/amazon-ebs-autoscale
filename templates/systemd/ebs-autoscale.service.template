@@ -1,0 +1,11 @@
+[Unit]
+Description=A process to monitor disk usage and add EBS volumes as needed
+Author=Amazon Web Services, Inc
+
+[Service]
+Environment= MOUNTPOINT =YOUR_MOUNTPOINT
+ExecStart=/usr/local/bin/ebs-autoscale ${MOUNTPOINT} >> /var/log/ebs-autoscale.log 2>&1
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
