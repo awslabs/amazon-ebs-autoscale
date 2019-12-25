@@ -28,6 +28,10 @@
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
+. /usr/local/amazon-ebs-autoscale/utils.sh
+
+initialize
+
 if [ "$#" -ne "1" ]; then
   echo "USAGE: $0 <MOUNT POINT>"
   exit 1
@@ -42,16 +46,10 @@ MAX_EBS_VOLUME_COUNT=16
 
 MOUNTPOINT=$1
 BASEDIR=$(dirname $0)
-logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
 
-AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
-while [ -z "${AZ}" ]; do
-  logthis "Metadata service did not return AZ. Trying again."
-  sleep 1
-  AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
-done
-AWS_REGION=$(echo ${AZ} | sed -e 's/[a-z]$//')
-logthis "Region = $AWS_REGION."
+logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
+logthis "Region = $AWS_REGION"
+logthis "Availability Zone = $AWS_AZ"
 
 # IN=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)  # not used
 # DRIVE_LETTERS=({a..z})  # not used

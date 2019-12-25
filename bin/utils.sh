@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2018 Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -28,59 +28,18 @@
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
-function printUsage() {
-  #statements
-  echo "USAGE: $0 <MOUNT POINT> [<DEVICE>]"
+function initialize() {
+    export AWS_AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
+    export AWS_REGION=$(echo ${AWS_AZ} | sed -e 's/[a-z]$//')
+    export INSTANCE_ID=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
 }
 
-if [ "$#" -lt "1" ]; then
-  printUsage
-  exit 1
-fi
-
-MOUNTPOINT=$1
-DEVICE=$2
-BASEDIR=$(dirname $0)
-
-. ${BASEDIR}/utils.sh
-
-initialize
-
-# make executables available on standard PATH
-mkdir -p /usr/local/amazon-ebs-autoscale
-cp ${BASEDIR}/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale
-ln -s /usr/local/amazon-ebs-autoscale/* /usr/local/bin/
-
-# copy shared assets
-cp ${BASEDIR}/utils.sh /usr/local/amazon-ebs-autoscale
-
-# If a device is not given, or if the device is not valid
-# create a new 20GB volume
-if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume.py --size 20)
-fi
-
-# create the BTRFS filesystem
-mkfs.btrfs -f -d single $DEVICE
-
-if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
-  echo "ERROR: $MOUNTPOINT exists but is not a directory."
-  exit 1
-elif ! [ -e $MOUNTPOINT ]; then
-  mkdir -p $MOUNTPOINT
-fi
-mount $DEVICE $MOUNTPOINT
-
-echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
-
-INIT_SYSTEM=$(detect-init-system)
-case $INIT_SYSTEM in
-  upstart,systemd)
-    cd ${BASEDIR}/../templates/$INIT_SYSTEM
-    . ./install.sh
-    ;;
-
-  *)
-    echo "Could not install EBS Autoscale - unsupported init system"
-    exit 1
-esac
+function detect-init-system() {
+    # detects the init system in use
+    # based on the following:
+    # https://unix.stackexchange.com/a/164092
+    if [[ `/sbin/init --version` =~ upstart ]]; then echo upstart;
+    elif [[ `systemctl` =~ -\.mount ]]; then echo systemd;
+    elif [[ -f /etc/init.d/cron && ! -h /etc/init.d/cron ]]; then echo sysv-init;
+    else echo unknown; fi
+}
