@@ -76,6 +76,8 @@ calc_threshold() {
     threshold=80
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
     threshold=90
+  elif [ "$num_devices" -gt "10" ]; then
+    threshold=90
   else
     threshold=50
   fi
