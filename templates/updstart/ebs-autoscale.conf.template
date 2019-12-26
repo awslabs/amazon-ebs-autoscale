@@ -1,5 +1,5 @@
 # upstart configuration
-description "A process to monitor disk usage and add EBS volumes as needed"
+description "Amazon EBS Autoscale"
 author "Amazon Web Services, Inc."
 
 env MOUNTPOINT=YOUR_MOUNTPOINT
