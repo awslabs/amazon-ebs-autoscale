@@ -70,6 +70,7 @@ cp ${BASEDIR}/config/ebs-autoscale.json /etc/ebs-autoscale.json
 INIT_SYSTEM=$(detect_init_system 2>/dev/null)
 case $INIT_SYSTEM in
   upstart|systemd)
+    echo "$INIT_SYSTEM detected"
     cd ${BASEDIR}/service/$INIT_SYSTEM
     . ./install.sh
     ;;
