@@ -49,7 +49,7 @@ initialize
 
 # Install executables
 # make executables available on standard PATH
-mkdir -p /usr/local/amazon-ebs-autoscale
+mkdir -p /usr/local/amazon-ebs-autoscale/{bin,shared}
 cp ${BASEDIR}/bin/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
 chmod +x /usr/local/amazon-ebs-autoscale/bin/*
 ln -s /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
