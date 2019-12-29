@@ -52,7 +52,7 @@ initialize
 mkdir -p /usr/local/amazon-ebs-autoscale/{bin,shared}
 cp ${BASEDIR}/bin/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
 chmod +x /usr/local/amazon-ebs-autoscale/bin/*
-ln -s /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
+ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
 
 # copy shared assets
 cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
