@@ -63,7 +63,7 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-cp ${BASEDIR}/config/ebs-autoscale.json
+cp ${BASEDIR}/config/ebs-autoscale.json /etc/ebs-autoscale.json
 
 
 ## Install service
