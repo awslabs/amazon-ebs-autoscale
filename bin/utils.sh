@@ -32,6 +32,7 @@ function initialize() {
     export AWS_AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
     export AWS_REGION=$(echo ${AWS_AZ} | sed -e 's/[a-z]$//')
     export INSTANCE_ID=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
+    export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 }
 
 function detect-init-system() {
@@ -42,4 +43,20 @@ function detect-init-system() {
     elif [[ `systemctl` =~ -\.mount ]]; then echo systemd;
     elif [[ -f /etc/init.d/cron && ! -h /etc/init.d/cron ]]; then echo sysv-init;
     else echo unknown; fi
+}
+
+function get_config_value() {
+    local filter="'.$1'"
+
+    cat $EBS_AUTOSCALE_CONFIG_FILE | jq -r $filter
+}
+
+function set_config_value() {
+    local filter="'.$1 = $2'"
+
+    cat $EBS_AUTOSCALE_CONFIG_FILE | jq $filter > $EBS_AUTOSCALE_CONFIG_FILE
+}
+
+function logthis() {
+    echo "[`date`] $1" >> $(get_config_value logging.log_file)
 }

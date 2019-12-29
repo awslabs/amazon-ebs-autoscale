@@ -32,27 +32,15 @@
 
 initialize
 
-if [ "$#" -ne "1" ]; then
-  echo "USAGE: $0 <MOUNT POINT>"
-  exit 1
-fi
+MAX_LOGICAL_VOLUME_SIZE=$(get_config_value limits.max_logical_volume_size)
+MAX_EBS_VOLUME_COUNT=$(get_config_value limits.max_ebs_volume_count)
 
-logthis () {
-  echo "[`date`] $1"
-}
-
-MAX_LOGICAL_VOLUME_SIZE=16384
-MAX_EBS_VOLUME_COUNT=16
-
-MOUNTPOINT=$1
+MOUNTPOINT=$(get_config_value mountpoint)
 BASEDIR=$(dirname $0)
 
 logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
 logthis "Region = $AWS_REGION"
 logthis "Availability Zone = $AWS_AZ"
-
-# IN=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)  # not used
-# DRIVE_LETTERS=({a..z})  # not used
 
 # make sure that this device is mounted.
 until [ -d "${MOUNTPOINT}" ]; do
@@ -134,7 +122,7 @@ add_space () {
 # number of event loops between utilization status log lines
 # helps to limit the log file size
 # utilization detection is not affected by this
-LOG_INTERVAL=300
+LOG_INTERVAL=$(get_config_value logging.log_interval)
 
 # initialized value for log lines
 # report on first run
@@ -142,9 +130,10 @@ LOG_COUNT=$LOG_INTERVAL
 
 # time in seconds between event loops
 # keep this low so that rapid increases in utilization are detected
-DETECTION_INTERVAL=1
+DETECTION_INTERVAL=$(get_config_value detection_interval)
 
 THRESHOLD=$(calc_threshold)
+logthis "Starting EBS autoscaling"
 while true; do
   PCT_UTILIZATION=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem | awk '{print $5}' | cut -d"%" -f1 -)
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then

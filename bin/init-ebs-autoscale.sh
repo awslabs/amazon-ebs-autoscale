@@ -45,6 +45,7 @@ BASEDIR=$(dirname $0)
 . ${BASEDIR}/utils.sh
 
 initialize
+set_config_value mountpoint $MOUNTPOINT
 
 # make executables available on standard PATH
 mkdir -p /usr/local/amazon-ebs-autoscale
