@@ -35,7 +35,7 @@ function initialize() {
     export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 }
 
-function detect-init-system() {
+function detect_init_system() {
     # detects the init system in use
     # based on the following:
     # https://unix.stackexchange.com/a/164092

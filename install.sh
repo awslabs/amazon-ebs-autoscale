@@ -43,7 +43,7 @@ MOUNTPOINT=$1
 DEVICE=$2
 BASEDIR=$(dirname $0)
 
-. ${BASEDIR}/bin/utils.sh
+. ${BASEDIR}/shared/utils.sh
 
 initialize
 
@@ -67,7 +67,7 @@ cp ${BASEDIR}/config/ebs-autoscale.json
 
 
 ## Install service
-INIT_SYSTEM=$(detect-init-system)
+INIT_SYSTEM=$(detect_init_system)
 case $INIT_SYSTEM in
   upstart,systemd)
     cd ${BASEDIR}/service/$INIT_SYSTEM
