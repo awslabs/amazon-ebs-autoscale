@@ -28,8 +28,9 @@
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
+set -e
+
 function printUsage() {
-  #statements
   echo "USAGE: $0 <MOUNT POINT> [<DEVICE>]"
 }
 
@@ -42,42 +43,34 @@ MOUNTPOINT=$1
 DEVICE=$2
 BASEDIR=$(dirname $0)
 
-. ${BASEDIR}/utils.sh
+. ${BASEDIR}/bin/utils.sh
 
 initialize
-set_config_value mountpoint $MOUNTPOINT
 
+# Install executables
 # make executables available on standard PATH
 mkdir -p /usr/local/amazon-ebs-autoscale
-cp ${BASEDIR}/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale
-ln -s /usr/local/amazon-ebs-autoscale/* /usr/local/bin/
+cp ${BASEDIR}/bin/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
+chmod +x /usr/local/amazon-ebs-autoscale/bin/*
+ln -s /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
 
 # copy shared assets
-cp ${BASEDIR}/utils.sh /usr/local/amazon-ebs-autoscale
+cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 
-# If a device is not given, or if the device is not valid
-# create a new 20GB volume
-if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume.py --size 20)
-fi
 
-# create the BTRFS filesystem
-mkfs.btrfs -f -d single $DEVICE
+## Install configs
+# install the logrotate config
+cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
-if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
-  echo "ERROR: $MOUNTPOINT exists but is not a directory."
-  exit 1
-elif ! [ -e $MOUNTPOINT ]; then
-  mkdir -p $MOUNTPOINT
-fi
-mount $DEVICE $MOUNTPOINT
+# install default config
+cp ${BASEDIR}/config/ebs-autoscale.json
 
-echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
 
+## Install service
 INIT_SYSTEM=$(detect-init-system)
 case $INIT_SYSTEM in
   upstart,systemd)
-    cd ${BASEDIR}/../templates/$INIT_SYSTEM
+    cd ${BASEDIR}/service/$INIT_SYSTEM
     . ./install.sh
     ;;
 
@@ -85,3 +78,29 @@ case $INIT_SYSTEM in
     echo "Could not install EBS Autoscale - unsupported init system"
     exit 1
 esac
+cd ${BASEDIR}
+
+
+## Create filesystem
+if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
+  echo "ERROR: $MOUNTPOINT exists but is not a directory."
+  exit 1
+elif ! [ -e $MOUNTPOINT ]; then
+  mkdir -p $MOUNTPOINT
+fi
+
+set_config_value mountpoint $MOUNTPOINT
+
+# If a device is not given, or if the device is not valid
+# create a new 20GB volume
+if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
+  DEVICE=$(create-ebs-volume.py --size 20)
+fi
+
+# create and mount the BTRFS filesystem
+mkfs.btrfs -f -d single $DEVICE
+mount $DEVICE $MOUNTPOINT
+
+# add entry to fstab
+# allows non-root users to mount/unmount the filesystem
+echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
