@@ -13,5 +13,4 @@ end script
 
 pre-stop script
     rm -f /var/run/ebs-autoscale.pid
-    echo "[`date`] Stopping EBS autoscaling" >> /var/log/ebs-autoscale.log
 end script
