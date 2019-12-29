@@ -60,3 +60,11 @@ function set_config_value() {
 function logthis() {
     echo "[`date`] $1" >> $(get_config_value logging.log_file)
 }
+
+function starting() {
+    logthis "Starting EBS autoscaling"
+}
+
+function stopping() {
+    logthis "Stopping EBS Autoscale"
+}

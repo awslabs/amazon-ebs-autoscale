@@ -119,6 +119,9 @@ add_space () {
   fi
 }
 
+starting
+trap stopping INT TERM KILL
+
 # number of event loops between utilization status log lines
 # helps to limit the log file size
 # utilization detection is not affected by this
@@ -133,7 +136,6 @@ LOG_COUNT=$LOG_INTERVAL
 DETECTION_INTERVAL=$(get_config_value detection_interval)
 
 THRESHOLD=$(calc_threshold)
-logthis "Starting EBS autoscaling"
 while true; do
   PCT_UTILIZATION=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem | awk '{print $5}' | cut -d"%" -f1 -)
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
