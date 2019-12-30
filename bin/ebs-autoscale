@@ -39,7 +39,7 @@ MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
 
 starting
-trap "stopping; exit" EXIT INT TERM KILL
+trap "stopping; exit" INT TERM KILL
 
 logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
 logthis "Region = $AWS_REGION"
