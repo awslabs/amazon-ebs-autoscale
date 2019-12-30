@@ -63,8 +63,7 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-cp ${BASEDIR}/config/ebs-autoscale.json /etc/ebs-autoscale.json
-
+sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
 
 ## Install service
 INIT_SYSTEM=$(detect_init_system 2>/dev/null)
@@ -89,8 +88,6 @@ if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
 elif ! [ -e $MOUNTPOINT ]; then
   mkdir -p $MOUNTPOINT
 fi
-
-set_config_value mountpoint $MOUNTPOINT
 
 # If a device is not given, or if the device is not valid
 # create a new 20GB volume

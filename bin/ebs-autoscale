@@ -32,10 +32,10 @@
 
 initialize
 
-MAX_LOGICAL_VOLUME_SIZE=$(get_config_value limits.max_logical_volume_size)
-MAX_EBS_VOLUME_COUNT=$(get_config_value limits.max_ebs_volume_count)
+MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
+MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
-MOUNTPOINT=$(get_config_value mountpoint)
+MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
 
 logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
@@ -125,7 +125,7 @@ trap stopping INT TERM KILL
 # number of event loops between utilization status log lines
 # helps to limit the log file size
 # utilization detection is not affected by this
-LOG_INTERVAL=$(get_config_value logging.log_interval)
+LOG_INTERVAL=$(get_config_value .logging.log_interval)
 
 # initialized value for log lines
 # report on first run
@@ -133,7 +133,7 @@ LOG_COUNT=$LOG_INTERVAL
 
 # time in seconds between event loops
 # keep this low so that rapid increases in utilization are detected
-DETECTION_INTERVAL=$(get_config_value detection_interval)
+DETECTION_INTERVAL=$(get_config_value .detection_interval)
 
 THRESHOLD=$(calc_threshold)
 while true; do

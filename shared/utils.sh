@@ -46,15 +46,9 @@ function detect_init_system() {
 }
 
 function get_config_value() {
-    local filter="'.$1'"
+    local filter=$1
 
-    cat $EBS_AUTOSCALE_CONFIG_FILE | jq -r $filter
-}
-
-function set_config_value() {
-    local filter="'.$1 = $2'"
-
-    cat $EBS_AUTOSCALE_CONFIG_FILE | jq $filter > $EBS_AUTOSCALE_CONFIG_FILE
+    jq -r $filter $EBS_AUTOSCALE_CONFIG_FILE
 }
 
 function logthis() {
