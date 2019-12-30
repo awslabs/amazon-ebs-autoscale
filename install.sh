@@ -67,21 +67,6 @@ cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 # install default config
 sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
 
-## Install service
-INIT_SYSTEM=$(detect_init_system 2>/dev/null)
-case $INIT_SYSTEM in
-  upstart|systemd)
-    echo "$INIT_SYSTEM detected"
-    cd ${BASEDIR}/service/$INIT_SYSTEM
-    . ./install.sh
-    ;;
-
-  *)
-    echo "Could not install EBS Autoscale - unsupported init system"
-    exit 1
-esac
-cd ${BASEDIR}
-
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
@@ -104,3 +89,19 @@ mount $DEVICE $MOUNTPOINT
 # add entry to fstab
 # allows non-root users to mount/unmount the filesystem
 echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
+
+
+## Install service
+INIT_SYSTEM=$(detect_init_system 2>/dev/null)
+case $INIT_SYSTEM in
+  upstart|systemd)
+    echo "$INIT_SYSTEM detected"
+    cd ${BASEDIR}/service/$INIT_SYSTEM
+    . ./install.sh
+    ;;
+
+  *)
+    echo "Could not install EBS Autoscale - unsupported init system"
+    exit 1
+esac
+cd ${BASEDIR}
