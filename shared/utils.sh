@@ -56,7 +56,7 @@ function logthis() {
 }
 
 function starting() {
-    logthis "Starting EBS autoscaling"
+    logthis "Starting EBS Autoscale"
 }
 
 function stopping() {

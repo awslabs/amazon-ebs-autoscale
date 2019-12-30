@@ -110,13 +110,13 @@ add_space () {
 
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
-      logthis "adding volume to filesystem"
+      logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
       btrfs device add ${DEVICE} ${MOUNTPOINT}
       btrfs balance start -m ${MOUNTPOINT}
-      logthis "Finished extending device."
+      logthis "Finished extending logical volume"
 
     else
-      logthis "Error creating or attaching volume"
+      logthis "Error creating or attaching EBS volume"
     fi
 
   fi
