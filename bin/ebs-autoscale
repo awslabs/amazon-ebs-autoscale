@@ -38,6 +38,9 @@ MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
 
+starting
+trap "stopping; exit" EXIT INT TERM KILL
+
 logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
 logthis "Region = $AWS_REGION"
 logthis "Availability Zone = $AWS_AZ"
@@ -118,9 +121,6 @@ add_space () {
 
   fi
 }
-
-starting
-trap stopping INT TERM KILL
 
 # number of event loops between utilization status log lines
 # helps to limit the log file size
