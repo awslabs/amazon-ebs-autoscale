@@ -52,7 +52,7 @@ function get_config_value() {
 }
 
 function logthis() {
-    echo "[`date`] $1" >> $(get_config_value logging.log_file)
+    echo "[`date`] $1" >> $(get_config_value .logging.log_file)
 }
 
 function starting() {
