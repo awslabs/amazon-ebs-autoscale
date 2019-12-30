@@ -137,6 +137,7 @@ DETECTION_INTERVAL=$(get_config_value .detection_interval)
 
 THRESHOLD=$(calc_threshold)
 while true; do
+  NUM_DEVICES=$(get_num_devices)
   STATS=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem)
   TOTAL_SIZE=$(echo ${STATS} | awk '{print $2}')
   USED=$(echo ${STATS} | awk '{print $3}')
@@ -147,7 +148,7 @@ while true; do
     add_space
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
-    logthis "Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
+    logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
     LOG_COUNT=0
   fi
   THRESHOLD=$(calc_threshold)
