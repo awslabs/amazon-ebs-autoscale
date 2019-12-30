@@ -137,13 +137,17 @@ DETECTION_INTERVAL=$(get_config_value .detection_interval)
 
 THRESHOLD=$(calc_threshold)
 while true; do
-  PCT_UTILIZATION=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem | awk '{print $5}' | cut -d"%" -f1 -)
+  STATS=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem)
+  TOTAL_SIZE=$(echo ${STATS} | awk '{print $2}')
+  USED=$(echo ${STATS} | awk '{print $3}')
+  AVAILABLE=$(echo ${STATS} | awk '{print $4}')
+  PCT_UTILIZATION=$(echo ${STATS} | awk '{print $5}' | cut -d"%" -f1 -)
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
     logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
     add_space
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
-    logthis "Threshold -> ${THRESHOLD}% :: Used% -> ${PCT_UTILIZATION}%"
+    logthis "Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
     LOG_COUNT=0
   fi
   THRESHOLD=$(calc_threshold)
