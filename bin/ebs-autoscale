@@ -28,49 +28,57 @@
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
-if [ "$#" -ne "1" ]; then
-  echo "USAGE: $0 <MOUNT POINT>"
-  exit 1
-fi
+. /usr/local/amazon-ebs-autoscale/shared/utils.sh
 
-logthis () {
-  echo "[`date`] $1"
-}
+initialize
 
-MP=$1
+MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
+MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
+
+MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
-AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
 
-logthis "EBS Autoscaling mountpoint: ${MP}"
+starting
+trap "stopping; exit" INT TERM KILL
 
-while [ -z "${AZ}" ]; do
-  logthis "Metadata service did not return AZ. Trying again."
-  sleep 1
-  AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
-done
-RG=$(echo ${AZ} | sed -e 's/[a-z]$//')
-logthis "Region = $RG."
-IN=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
-DRIVE_LETTERS=({a..z})
+logthis "EBS Autoscaling mountpoint: ${MOUNTPOINT}"
+logthis "Region = $AWS_REGION"
+logthis "Availability Zone = $AWS_AZ"
 
 # make sure that this device is mounted.
-until [ -d "${MP}" ]; do
+until [ -d "${MOUNTPOINT}" ]; do
   sleep 1
 done
+
+get_num_devices() {
+  echo $(ls /dev/sd* | grep -v -E '[0-9]$' | wc -l)
+}
+
 calc_threshold() {
-  local num_devices=$(ls /dev/sd* | grep -v -E '[0-9]$' | wc -l)
+  # calculates percent utilization threshold for adding additional ebs volumes
+  # as more ebs volumes are added, the threshold level increases
+
+  local num_devices=$(get_num_devices)
   local threshold=50
-  if [ "$num_devices" -gt "4" ] && [ "$num_devices" -le "6" ]; then
+
+  if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
     threshold=80
-  elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10"   ]; then
+  elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
+    threshold=90
+  elif [ "$num_devices" -gt "10" ]; then
     threshold=90
   else
     threshold=50
   fi
+
   echo ${threshold}
 }
+
 calc_new_size() {
-  local num_devices=$1
+  # calculates the size to use for new ebs volumes to expand space
+  # new volume sizes increase as the number of attached volumes increase
+  
+  local num_devices=$(get_num_devices)
   local new_size=150
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
@@ -82,49 +90,68 @@ calc_new_size() {
   else
     new_size=150
   fi
+
   echo ${new_size}
 }
 
 add_space () {
-  local num_devices=$(ls /dev/sd* | grep -v -E '[0-9]$' | wc -l)
-  if [ "${num_devices}" -ge "16" ]; then
+  local num_devices=$(get_num_devices)
+  if [ "${num_devices}" -ge "$MAX_EBS_VOLUME_COUNT" ]; then
     logthis "No more volumes can be safely added."
     return 0
   fi
-  local curr_size=$(df  -BG ${MP} | grep ${MP} | awk '{print $2} ' | cut -d'G' -f1)
-  if [ "${curr_size}" -lt "16384" ]; then
-    local vol_size=$(calc_new_size ${num_devices})
-    logthis "Extending LV ${MP} by  ${vol_size}GB"
 
-    DV=$(python ${BASEDIR}/create-ebs-volume.py -s ${vol_size})
+  local curr_size=$(df -BG ${MOUNTPOINT} | grep ${MOUNTPOINT} | awk '{print $2} ' | cut -d'G' -f1)
+  if [ "${curr_size}" -lt "$MAX_LOGICAL_VOLUME_SIZE" ]; then
+    local vol_size=$(calc_new_size)
+    logthis "Extending logical volume ${MOUNTPOINT} by ${vol_size}GB"
+
+    DEVICE=$(python ${BASEDIR}/create-ebs-volume.py -s ${vol_size})
 
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
-      logthis "adding volume to filesystem"
-      btrfs device add ${DV} ${MP}
-      btrfs balance start -m ${MP}
-      logthis "Finished extending device."
+      logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
+      btrfs device add ${DEVICE} ${MOUNTPOINT}
+      btrfs balance start -m ${MOUNTPOINT}
+      logthis "Finished extending logical volume"
 
     else
-      logthis "Error creating or attaching volume"
+      logthis "Error creating or attaching EBS volume"
     fi
 
   fi
 }
 
-COUNT=300
+# number of event loops between utilization status log lines
+# helps to limit the log file size
+# utilization detection is not affected by this
+LOG_INTERVAL=$(get_config_value .logging.log_interval)
+
+# initialized value for log lines
+# report on first run
+LOG_COUNT=$LOG_INTERVAL
+
+# time in seconds between event loops
+# keep this low so that rapid increases in utilization are detected
+DETECTION_INTERVAL=$(get_config_value .detection_interval)
+
 THRESHOLD=$(calc_threshold)
 while true; do
-  F=$(df -BG  ${MP} | grep -v Filesystem | awk '{print $5}' | cut -d"%" -f1 -)
-  if  [ $F -ge "${THRESHOLD}" ]; then
-    logthis "LOW DISK ($F): Adding more."
+  NUM_DEVICES=$(get_num_devices)
+  STATS=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem)
+  TOTAL_SIZE=$(echo ${STATS} | awk '{print $2}')
+  USED=$(echo ${STATS} | awk '{print $3}')
+  AVAILABLE=$(echo ${STATS} | awk '{print $4}')
+  PCT_UTILIZATION=$(echo ${STATS} | awk '{print $5}' | cut -d"%" -f1 -)
+  if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
+    logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
     add_space
   fi
-  if [ "${COUNT}" -ge "300" ]; then
-    logthis "Threshold -> ${THRESHOLD} :: Used% -> ${F}%"
-    COUNT=0
+  if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
+    logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
+    LOG_COUNT=0
   fi
   THRESHOLD=$(calc_threshold)
-  COUNT=$(expr $COUNT + 1 )
-  sleep 1
+  LOG_COUNT=$(expr $LOG_COUNT + 1 )
+  sleep $DETECTION_INTERVAL
 done

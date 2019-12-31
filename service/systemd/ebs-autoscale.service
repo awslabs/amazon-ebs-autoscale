@@ -1,0 +1,10 @@
+[Unit]
+Description=Amazon EBS Autoscale
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ebs-autoscale
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

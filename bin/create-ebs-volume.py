@@ -36,7 +36,6 @@ import argparse
 import boto3
 from botocore.exceptions import ClientError
 
-## TODO: CLI arguments
 parameters = argparse.ArgumentParser(description="Create a new EBS Volume and attach it to the current instance")
 parameters.add_argument("-s","--size", type=int, required=True)
 parameters.add_argument("-t","--type", type=str, default="gp2")
@@ -71,7 +70,7 @@ def get_metadata(key):
     return urllib.urlopen(("/").join(['http://169.254.169.254/latest/meta-data', key])).read()
 
 
-# create a EBS volume
+# create an EBS volume
 def create_and_attach_volume(size=10, vol_type="gp2", encrypted=True, max_attached_volumes=16, max_created_volumes=256):
     instance_id  = get_metadata("instance-id")
     availability_zone = get_metadata("placement/availability-zone")
@@ -143,5 +142,12 @@ def create_and_attach_volume(size=10, vol_type="gp2", encrypted=True, max_attach
 
 if __name__ == '__main__':
     args = parameters.parse_args()
-    print(create_and_attach_volume(args.size), end='')
+    print(
+        create_and_attach_volume(
+            size=args.size,
+            vol_type=args.type,
+            encrypted=args.encrypted
+        ), 
+        end=''
+    )
     sys.stdout.flush()

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2018 Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -28,56 +28,37 @@
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
-function printUsage() {
-  #statements
-  echo "USAGE: $0 <MOUNT POINT> [<DEVICE>]"
+function initialize() {
+    export AWS_AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
+    export AWS_REGION=$(echo ${AWS_AZ} | sed -e 's/[a-z]$//')
+    export INSTANCE_ID=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
+    export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 }
 
-if [ "$#" -lt "1" ]; then
-  printUsage
-  exit 1
-fi
+function detect_init_system() {
+    # detects the init system in use
+    # based on the following:
+    # https://unix.stackexchange.com/a/164092
+    if [[ `/sbin/init --version` =~ upstart ]]; then echo upstart;
+    elif [[ `systemctl` =~ -\.mount ]]; then echo systemd;
+    elif [[ -f /etc/init.d/cron && ! -h /etc/init.d/cron ]]; then echo sysv-init;
+    else echo unknown; fi
+}
 
+function get_config_value() {
+    local filter=$1
 
-MP=$1
-DV=$2
+    jq -r $filter $EBS_AUTOSCALE_CONFIG_FILE
+}
 
-AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
-RG=$(echo ${AZ} | sed -e 's/[a-z]$//')
-IN=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
-BASEDIR=$(dirname $0)
+function logthis() {
+    echo "[`date`] $1" >> $(get_config_value .logging.log_file)
+}
 
-# copy the binaries to /usr/local/bin
-cp ${BASEDIR}/{create-ebs-volume.py,ebs-autoscale} /usr/local/bin/
+function starting() {
+    logthis "Starting EBS Autoscale"
+}
 
-# If a device is not given, or if the device is not valid
-# create a new 20GB volume
-if [ -z "${DV}" ] || [ ! -b "${DV}" ]; then
-  DV=$(create-ebs-volume.py --size 20)
-fi
-
-# create the BTRFS filesystem
-mkfs.btrfs -f -d single $DV
-
-if [ -e $MP ] && ! [ -d $MP ]; then
-  echo "ERR: $MP exists but is not a directory."
-  exit 1
-elif ! [ -e $MP ]; then
-  mkdir -p $MP
-fi
-mount $DV $MP
-
-echo -e "${DV}\t${MP}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
-
-# go to the template directory
-cd ${BASEDIR}/../templates
-
-# install the upstart config
-sed -e "s#YOUR_MOUNTPOINT#${MP}#" ebs-autoscale.conf.template > /etc/init/ebs-autoscale.conf
-
-# install the logrotate config
-cp ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
-
-# Register the ebs-autoscale upstart conf and start the service
-initctl reload-configuration
-initctl start ebs-autoscale
+function stopping() {
+    logthis "Stopping EBS Autoscale"
+}
