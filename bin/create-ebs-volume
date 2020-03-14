@@ -108,13 +108,12 @@ fi
 alphabet=( {b..z} )
 
 function get_next_logical_device() {
-    for letter in alphabet; do
-        if [ ! -e "/dev/sd${letter}" ]; then
+    for letter in ${alphabet[@]}; do
+        if [ ! -b "/dev/sd${letter}" ]; then
             echo "/dev/sd${letter}"
-            return 0
+            break
         fi
     done
-    return 1
 }
 
 function get_metadata() {
@@ -133,12 +132,12 @@ function create_and_attach_volume() {
             --filters Name=attachment.instance-id,Values=$instance_id
     )
 
-    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -eq MAX_ATTACHED_VOLUMES ]; then
+    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -eq "$MAX_ATTACHED_VOLUMES" ]; then
         error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
     fi
     
     local device=$(get_next_logical_device)
-    if [ ! "$?" -eq 0 ]; then
+    if [ -z "$device" ]; then
         error "could not find unused device"
     fi
 
@@ -152,7 +151,7 @@ function create_and_attach_volume() {
     )
     local volume_id=`echo $volume | jq -r '.VolumeId'`
 
-    aws ec2 wait volume-available --volume-ids $volume_id
+    aws ec2 wait volume-available --region $region --volume-ids $volume_id
 
     # Need to assure that the created volume is successfully attached to be
     # cost efficient.  If attachment fails, delete the volume.
@@ -161,13 +160,15 @@ function create_and_attach_volume() {
         --region $region \
         --device $device \
         --instance-id $instance_id \
-        --volume-id $volume_id
+        --volume-id $volume_id \
+    > /dev/null
     
     status="$?"
     if [ ! "$status" -eq 0 ]; then
         aws ec2 delete-volume \
             --region $region \
-            --volume-id $volume_id
+            --volume-id $volume_id \
+        > /dev/null
         
         error "could not attach volume to instance"
     fi
@@ -183,7 +184,9 @@ function create_and_attach_volume() {
     # set volume delete on termination
     aws ec2 modify-instance-attribute \
         --region $region \
-        --block-device-mappings DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}
+        --instance-id $instance_id \
+        --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
+    > /dev/null
 
     echo $device
 }
