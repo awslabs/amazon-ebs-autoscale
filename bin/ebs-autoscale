@@ -106,7 +106,7 @@ add_space () {
     local vol_size=$(calc_new_size)
     logthis "Extending logical volume ${MOUNTPOINT} by ${vol_size}GB"
 
-    DEVICE=$(python ${BASEDIR}/create-ebs-volume.py -s ${vol_size})
+    DEVICE=$(${BASEDIR}/create-ebs-volume --size ${vol_size} --max-attached-volumes ${MAX_EBS_VOLUME_COUNT})
 
     exit_status=$?
     if [ $exit_status -eq 0 ]; then

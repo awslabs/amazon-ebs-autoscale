@@ -5,14 +5,15 @@ repo_upgrade: all
 packages:
   - jq
   - btrfs-progs
-  - python27-pip
   - sed
   - wget
   - git
+  - zip
 
 
 runcmd:
-  - pip install -U awscli boto3
+  - curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+  - unzip -q /tmp/awscliv2.zip -d /tmp && /tmp/aws/install
   - EBS_AUTOSCALE_VERSION=$(curl --silent "https://api.github.com/repos/awslabs/amazon-ebs-autoscale/releases/latest" | jq -r .tag_name)
   - cd /opt && git clone https://github.com/awslabs/amazon-ebs-autoscale.git
   - cd /opt/amazon-ebs-autoscale && git checkout $EBS_AUTOSCALE_VERSION

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2018 Amazon.com, Inc. or its affiliates.
+# Copyright Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions are met:
@@ -50,7 +50,7 @@ initialize
 # Install executables
 # make executables available on standard PATH
 mkdir -p /usr/local/amazon-ebs-autoscale/{bin,shared}
-cp ${BASEDIR}/bin/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
+cp ${BASEDIR}/bin/{create-ebs-volume,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
 chmod +x /usr/local/amazon-ebs-autoscale/bin/*
 ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
 ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/bin/
@@ -66,7 +66,7 @@ cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
 sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
-
+MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
@@ -79,7 +79,7 @@ fi
 # If a device is not given, or if the device is not valid
 # create a new 20GB volume
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume.py --size 20)
+  DEVICE=$(create-ebs-volume --size 20 --max-attached-volumes ${MAX_EBS_VOLUME_COUNT})
 fi
 
 # create and mount the BTRFS filesystem

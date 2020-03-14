@@ -1,0 +1,191 @@
+#!/bin/bash
+# Copyright Amazon.com, Inc. or its affiliates.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are met:
+#
+#  1. Redistributions of source code must retain the above copyright notice,
+#  this list of conditions and the following disclaimer.
+#
+#  2. Redistributions in binary form must reproduce the above copyright
+#  notice, this list of conditions and the following disclaimer in the
+#  documentation and/or other materials provided with the distribution.
+#
+#  3. Neither the name of the copyright holder nor the names of its
+#  contributors may be used to endorse or promote products derived from
+#  this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+#  BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+#  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+#  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+#  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+
+USAGE=$(cat <<EOF
+Create EBS volume
+
+    $0 [options] --size <volume_size_gb>
+
+Required
+
+    -s, --size          Size of the volume in GB.
+
+Options
+
+    -t, --type          Type of volume. (Default: gp2)
+
+    --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
+                        an encrypted volume
+    
+    --max-attached-volumes
+                        Maximum number of attached volumes. (Default: 16)
+EOF
+)
+
+if [ "$#" -lt 1 ]; then
+    echo "$USAGE"
+    exit 1
+fi
+
+function error() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+TYPE=gp2
+ENCRYPTED=1
+MAX_ATTACHED_VOLUMES=16
+
+# parse options
+PARAMS=""
+while (( "$#" )); do
+    case "$1" in
+        -s|--size)
+            SIZE=$2
+            shift 2
+            ;;
+        -t|--type)
+            TYPE=$2
+            shift 2
+            ;;
+        --not-encrypted)
+            unset ENCRYPTED
+            shift
+            ;;
+        --max-attached-volumes)
+            MAX_ATTACHED_VOLUMES=$2
+            shift 2
+            ;;
+        --) # end parsing
+            shift
+            break
+            ;;
+        -*|--*=)
+            error "unsupported argument $1"
+            ;;
+        *) # positional arguments
+            PARAMS="$PARAMS $1"
+            shift
+            ;;
+    esac
+done
+
+eval set -- "$PARAMS"
+
+if [[ ! "$SIZE" ]]; then
+    error "missing required argument --size"
+fi
+
+alphabet=( {b..z} )
+
+function get_next_logical_device() {
+    for letter in alphabet; do
+        if [ ! -e "/dev/sd${letter}" ]; then
+            echo "/dev/sd${letter}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+function get_metadata() {
+    local key=$1
+    echo `curl -s http://169.254.169.254/latest/meta-data/$key`
+}
+
+function create_and_attach_volume() {
+    local instance_id=$(get_metadata instance-id)
+    local availability_zone=$(get_metadata placement/availability-zone)
+    local region=${availability_zone%?}
+
+    local attached_volumes=$(
+        aws ec2 describe-volumes \
+            --region $region \
+            --filters Name=attachment.instance-id,Values=$instance_id
+    )
+
+    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -eq MAX_ATTACHED_VOLUMES ]; then
+        error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
+    fi
+    
+    local device=$(get_next_logical_device)
+    if [ ! "$?" -eq 0 ]; then
+        error "could not find unused device"
+    fi
+
+    # create the volume
+    local volume=$(\
+        aws ec2 create-volume \
+            --region $region \
+            --availability-zone $availability_zone \
+            --size $SIZE \
+            --volume-type $TYPE
+    )
+    local volume_id=`echo $volume | jq -r '.VolumeId'`
+
+    aws ec2 wait volume-available --volume-ids $volume_id
+
+    # Need to assure that the created volume is successfully attached to be
+    # cost efficient.  If attachment fails, delete the volume.
+    set +e
+    aws ec2 attach-volume \
+        --region $region \
+        --device $device \
+        --instance-id $instance_id \
+        --volume-id $volume_id
+    
+    status="$?"
+    if [ ! "$status" -eq 0 ]; then
+        aws ec2 delete-volume \
+            --region $region \
+            --volume-id $volume_id
+        
+        error "could not attach volume to instance"
+    fi
+    set -e
+
+    while true; do
+        if [ -e "$device" ]; then
+            break
+        fi
+        sleep 1
+    done
+
+    # set volume delete on termination
+    aws ec2 modify-instance-attribute \
+        --region $region \
+        --block-device-mappings DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}
+
+    echo $device
+}
+
+create_and_attach_volume
