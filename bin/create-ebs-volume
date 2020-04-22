@@ -50,6 +50,10 @@ Options
     
     --max-attached-volumes
                         Maximum number of attached volumes. (Default: 16)
+    
+    --max-created-volumes
+                        Maximum number of volumes that can be created by the instance.
+                        (Default: MAX_ATTACHED_VOLUMES)
 EOF
 )
 
@@ -66,6 +70,7 @@ function error() {
 TYPE=gp2
 ENCRYPTED=1
 MAX_ATTACHED_VOLUMES=16
+MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
 
 # parse options
 PARAMS=""
@@ -85,6 +90,10 @@ while (( "$#" )); do
             ;;
         --max-attached-volumes)
             MAX_ATTACHED_VOLUMES=$2
+            shift 2
+            ;;
+        --max-created-volumes)
+            MAX_CREATED_VOLUMES=$2
             shift 2
             ;;
         --) # end parsing
@@ -131,7 +140,19 @@ function create_and_attach_volume() {
             --filters Name=attachment.instance-id,Values=$instance_id
     )
 
-    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -eq "$MAX_ATTACHED_VOLUMES" ]; then
+    local created_volumes=$(
+        aws ec2 describe-volumes \
+            --region $region \
+            --filters Name=tag:source-instance,Values=$instance_id
+    )
+
+    # check how many volumes this instance has created
+    if [ "`echo $created_volumes | jq '.Volumes | length'`" -ge "$MAX_CREATED_VOLUMES" ]; then
+        error "maximum number of created volumes reached ($MAX_CREATED_VOLUMES)"
+    fi
+
+    # check how many volumes are currently attached
+    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -ge "$MAX_ATTACHED_VOLUMES" ]; then
         error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
     fi
     
@@ -146,7 +167,8 @@ function create_and_attach_volume() {
             --region $region \
             --availability-zone $availability_zone \
             --size $SIZE \
-            --volume-type $TYPE
+            --volume-type $TYPE \
+            --tag-specification ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]
     )
     local volume_id=`echo $volume | jq -r '.VolumeId'`
 
