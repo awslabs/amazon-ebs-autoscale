@@ -107,12 +107,14 @@ if [[ ! "$SIZE" ]]; then
     error "missing required argument --size"
 fi
 
-alphabet=( {b..z} )
+alphabet=( {a..z} )
 
 function get_next_logical_device() {
     for letter in ${alphabet[@]}; do
-        if [ ! -b "/dev/sd${letter}" ]; then
-            echo "/dev/sd${letter}"
+        # use /dev/xvdb* device names to avoid contention for /dev/sd* and /dev/xvda names
+        # only supported by HVM instances
+        if [ ! -b "/dev/xvdb${letter}" ]; then
+            echo "/dev/xvdb${letter}"
             break
         fi
     done
