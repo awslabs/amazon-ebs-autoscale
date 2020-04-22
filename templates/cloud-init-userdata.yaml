@@ -9,6 +9,7 @@ packages:
   - wget
   - git
   - unzip
+  - lvm2
 
 
 runcmd:
