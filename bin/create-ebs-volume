@@ -63,6 +63,7 @@ if [ "$#" -lt 1 ]; then
 fi
 
 function error() {
+    logthis "Error: $1"
     echo "Error: $1" >&2
     exit 1
 }
@@ -156,10 +157,12 @@ function create_and_attach_volume() {
         error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
     fi
     
+    # check if there are available device names
     local device=$(get_next_logical_device)
     if [ -z "$device" ]; then
-        error "could not find unused device"
+        error "no device names available for volume"
     fi
+    logthis "next available device: $device"
 
     # create the volume
     local volume=$(\
@@ -171,12 +174,15 @@ function create_and_attach_volume() {
             --tag-specification ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]
     )
     local volume_id=`echo $volume | jq -r '.VolumeId'`
+    logthis "created volume: $volume_id"
 
     aws ec2 wait volume-available --region $region --volume-ids $volume_id
+    logthis "volume $volume_id available"
 
     # Need to assure that the created volume is successfully attached to be
     # cost efficient.  If attachment fails, delete the volume.
     set +e
+    logthis "attaching volume $volume_id"
     aws ec2 attach-volume \
         --region $region \
         --device $device \
@@ -186,6 +192,7 @@ function create_and_attach_volume() {
     
     status="$?"
     if [ ! "$status" -eq 0 ]; then
+        logthis "deleting volume $volume_id"
         aws ec2 delete-volume \
             --region $region \
             --volume-id $volume_id \
@@ -195,8 +202,10 @@ function create_and_attach_volume() {
     fi
     set -e
 
+    logthis "waiting for volume $volume_id on filesystem"
     while true; do
         if [ -e "$device" ]; then
+            logthis "volume $volume_id on filesystem as $device"
             break
         fi
         sleep 1
@@ -208,6 +217,7 @@ function create_and_attach_volume() {
         --instance-id $instance_id \
         --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
     > /dev/null
+    logthis "volume $volume_id DeleteOnTermination ENABLED"
 
     echo $device
 }
