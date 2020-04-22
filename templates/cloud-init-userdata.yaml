@@ -8,7 +8,7 @@ packages:
   - sed
   - wget
   - git
-  - zip
+  - unzip
 
 
 runcmd:
