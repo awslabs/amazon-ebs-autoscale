@@ -30,6 +30,8 @@
 
 set -e
 
+. /usr/local/amazon-ebs-autoscale/shared/utils.sh
+
 USAGE=$(cat <<EOF
 Create EBS volume
 
@@ -114,11 +116,6 @@ function get_next_logical_device() {
             break
         fi
     done
-}
-
-function get_metadata() {
-    local key=$1
-    echo `curl -s http://169.254.169.254/latest/meta-data/$key`
 }
 
 function create_and_attach_volume() {
