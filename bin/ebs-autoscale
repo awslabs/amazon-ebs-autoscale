@@ -51,7 +51,14 @@ until [ -d "${MOUNTPOINT}" ]; do
 done
 
 get_num_devices() {
-  echo $(ls /dev/sd* | grep -v -E '[0-9]$' | wc -l)
+  # determine the number of attached devices on this instance
+  local attached_volumes=$(
+      aws ec2 describe-volumes \
+          --region $AWS_REGION \
+          --filters Name=attachment.instance-id,Values=$INSTANCE_ID
+  )
+
+  echo "`echo $attached_volumes | jq '.Volumes | length'`"
 }
 
 calc_threshold() {
