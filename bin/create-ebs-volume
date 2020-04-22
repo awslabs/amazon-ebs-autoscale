@@ -138,13 +138,13 @@ function create_and_attach_volume() {
     local attached_volumes=$(
         aws ec2 describe-volumes \
             --region $region \
-            --filters Name=attachment.instance-id,Values=$instance_id
+            --filters "Name=attachment.instance-id,Values=$instance_id"
     )
 
     local created_volumes=$(
         aws ec2 describe-volumes \
             --region $region \
-            --filters Name=tag:source-instance,Values=$instance_id
+            --filters "Name=tag:source-instance,Values=$instance_id"
     )
 
     # check how many volumes this instance has created
@@ -171,7 +171,7 @@ function create_and_attach_volume() {
             --availability-zone $availability_zone \
             --size $SIZE \
             --volume-type $TYPE \
-            --tag-specification ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]
+            --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]"
     )
     local volume_id=`echo $volume | jq -r '.VolumeId'`
     logthis "created volume: $volume_id"
