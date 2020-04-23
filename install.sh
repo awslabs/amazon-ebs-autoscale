@@ -29,23 +29,75 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 
 set -e
+set -x
 
+<<<<<<< HEAD
 function printUsage() {
   echo "USAGE: $0 <MOUNT POINT> <DEVICE>"
 }
+=======
+USAGE=$(cat <<EOF
+Install Amazon EBS Autoscale
+
+    $0 [options] <mount-point>
+
+Options
+
+    -d, --initial-device DEVICE
+                        Initial device to use for moutnpoint - e.g. /dev/xvdba.
+                        (Default: none - automatically create and attaches a volume)
+                        If provided --initial-size is ignored.
+
+    -s, --initial-size  SIZE
+                        Initial size of the volume in GB. (Default: 100)
+                        Only used if --initial-device is NOT specified.
+
+EOF
+)
+>>>>>>> master
 
 if [ "$#" -lt "1" ]; then
-  printUsage
+  echo "$USAGE"
   exit 1
 fi
 
 MOUNTPOINT=$1
-DEVICE=$2
+SIZE=100
+DEVICE=""
 BASEDIR=$(dirname $0)
 
 . ${BASEDIR}/shared/utils.sh
 
 initialize
+
+# parse options
+PARAMS=""
+while (( "$#" )); do
+    case "$1" in
+        -s|--initial-size)
+            SIZE=$2
+            shift 2
+            ;;
+        -d|--initial-device)
+            DEVICE=$2
+            shift 2
+            ;;
+        --) # end parsing
+            shift
+            break
+            ;;
+        -*|--*=)
+            error "unsupported argument $1"
+            ;;
+        *) # positional arguments
+            PARAMS="$PARAMS $1"
+            shift
+            ;;
+    esac
+done
+
+eval set -- "$PARAMS"
+
 
 # Install executables
 # make executables available on standard PATH
@@ -65,10 +117,14 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
+<<<<<<< HEAD
 sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json | \
 sed -e "s#/dev/xvdb#${DEVICE}#" > /etc/ebs-autoscale.json
 FILE_SYSTEM=$(get_config_value .filesystem)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
+=======
+sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
+>>>>>>> master
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
@@ -79,9 +135,8 @@ elif ! [ -e $MOUNTPOINT ]; then
 fi
 
 # If a device is not given, or if the device is not valid
-# create a new 20GB volume
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume --size 20 --max-attached-volumes ${MAX_EBS_VOLUME_COUNT})
+  DEVICE=$(create-ebs-volume --size $SIZE)
 fi
 
 # create and mount the BTRFS filesystem

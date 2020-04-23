@@ -8,7 +8,7 @@
     },
     "detection_interval": 1,
     "limits": {
-        "max_logical_volume_size": 16384,
+        "max_logical_volume_size": 8000,
         "max_ebs_volume_count": 16
     },
     "logging": {

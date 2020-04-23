@@ -5,13 +5,17 @@ This is an example of a daemon process that monitors a BTRFS filesystem mountpoi
 ## Assumptions:
 
 1. Code is running on an AWS EC2 instance
-2. The instance is using a Linux based OS with either **upstart** or **systemd** system initialization
-3. The instance has a IAM Instance Profile with appropriate permissions to create and attach new EBS volumes. See the [IAM Instance Profile](#iam_instance_profile) section below for more details
-4. That prerequisites are installed on the instance.
+2. The insance and AMI use HVM virtualization
+3. The instance AMI allows device names like `/dev/xvdb*` and will not remap them
+4. The instance is using a Linux based OS with either **upstart** or **systemd** system initialization
+5. The instance has a IAM Instance Profile with appropriate permissions to create and attach new EBS volumes. See the [IAM Instance Profile](#iam_instance_profile) section below for more details
+6. That prerequisites are installed on the instance:
+   1. jq
+   2. btrfs-progs
 
 Provided in this repo are:
 
-1. A python [script](bin/create-ebs-volume.py) that creates and attaches new EBS volumes to the current instance
+1. A [script](bin/create-ebs-volume) that creates and attaches new EBS volumes to the current instance
 2. The daemon [script](bin/ebs-autoscale) that monitors disk space and expands the BTRFS filesystem by leveraging the above script to add EBS volumes, expand the filesystem, and rebalance the metadata blocks
 3. Service definitions for [upstart](service/upstart/ebs-autoscale.conf) and [systemd](service/systemd/ebs-autoscale.service)
 4. Configuration files for the [service](config/ebs-autoscale.json) and [logrotate](config/ebs-autoscale.logrotate)
@@ -32,7 +36,7 @@ aws ec2 run-instances --image-id ami-5253c32d \
   --iam-instance-profile Name=MyInstanceProfileWithProperPermissions
 ```
 
-that installs required packages and runs the initialization script. By default this creates a mount point of `/scratch` on a encrypted 20GB EBS volume. To change the mount point, edit the file.
+that installs required packages and runs the initialization script. By default this creates a mount point of `/scratch` on a encrypted 100GB EBS volume. To change the mount point, edit the [cloud-init script](templates/cloud-init-userdata.yaml) file.
 
 ## A note on IAM Instance Profile
 

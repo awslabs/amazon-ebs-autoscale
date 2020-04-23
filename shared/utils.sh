@@ -51,6 +51,11 @@ function get_config_value() {
     jq -r $filter $EBS_AUTOSCALE_CONFIG_FILE
 }
 
+function get_metadata() {
+    local key=$1
+    echo `curl -s http://169.254.169.254/latest/meta-data/$key`
+}
+
 function logthis() {
     echo "[`date`] $1" >> $(get_config_value .logging.log_file)
 }
