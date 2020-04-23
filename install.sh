@@ -104,7 +104,7 @@ else
   echo "Unknown file system type: ${FILE_SYSTEM}"
   exit 1
 fi
-chmod 1777 $MOUNTPOINT
+chmod 1777 ${MOUNTPOINT}
 
 ## Install service
 INIT_SYSTEM=$(detect_init_system 2>/dev/null)
