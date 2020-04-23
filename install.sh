@@ -39,9 +39,13 @@ Install Amazon EBS Autoscale
 Options
 
     -d, --initial-device DEVICE
-                        Initial device to use for moutnpoint - e.g. /dev/xvdba.
+                        Initial device to use for mountpoint - e.g. /dev/xvdba.
                         (Default: none - automatically create and attaches a volume)
                         If provided --initial-size is ignored.
+
+    -f, --file-system   btrfs | lvm.ext4
+                        Filesystem to use (default: btrfs).
+                        Options are btrfs or lvm.ext4
 
     -s, --initial-size  SIZE
                         Initial size of the volume in GB. (Default: 100)
@@ -58,6 +62,7 @@ fi
 MOUNTPOINT=$1
 SIZE=100
 DEVICE=""
+FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
 
 . ${BASEDIR}/shared/utils.sh
@@ -74,6 +79,10 @@ while (( "$#" )); do
             ;;
         -d|--initial-device)
             DEVICE=$2
+            shift 2
+            ;;
+        -f|--file-system)
+            FILE_SYSTEM=$2
             shift 2
             ;;
         --) # end parsing
@@ -111,7 +120,8 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
+sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json |
+sed -e "s#/filesystem#${FILE_SYSTEM}#" > /etc/ebs-autoscale.json
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then

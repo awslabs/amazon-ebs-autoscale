@@ -36,6 +36,10 @@ MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
 FILE_SYSTEM=$(get_config_value .filesystem)
+
+LVM_VG=$(get_config_value .lvm.volume_group)
+LVM_LV=$(get_config_value .lvm.logical_volume)
+
 MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
 
@@ -123,11 +127,9 @@ add_space () {
         btrfs device add ${DEVICE} ${MOUNTPOINT}
         btrfs balance start -m ${MOUNTPOINT}
       else
-        VG=$(get_config_value .lvm.volume_group)
-        LV=$(get_config_value .lvm.logical_volume)
-        vgextend ${VG} ${DEVICE}
-        lvresize -l 100%VG /dev/mapper/${VG}-${LV}
-        resize2fs /dev/mapper/${VG}-${LV}
+        vgextend ${LVM_VG} ${DEVICE}
+        lvresize -l 100%VG /dev/mapper/${LVM_VG}-${LVM_LV}
+        resize2fs /dev/mapper/${LVM_VG}-${LVM_LV}
       fi
       logthis "Finished extending logical volume"
 

@@ -1,6 +1,6 @@
 {
     "mountpoint": "/scratch",
-    "filesystem": "lvm.ext4",
+    "filesystem": "btrfs",
     "device": "/dev/xvdb",
     "lvm": {
       "volume_group": "autoscale_vg",
