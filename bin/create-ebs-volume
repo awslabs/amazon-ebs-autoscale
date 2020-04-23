@@ -31,6 +31,7 @@
 set -e
 
 . /usr/local/amazon-ebs-autoscale/shared/utils.sh
+initialize
 
 USAGE=$(cat <<EOF
 Create EBS volume
@@ -49,7 +50,8 @@ Options
                         an encrypted volume
     
     --max-attached-volumes
-                        Maximum number of attached volumes. (Default: 16)
+                        Maximum number of attached volumes.
+                        (Default: config.limits.max_ebs_volume_count)
     
     --max-created-volumes
                         Maximum number of volumes that can be created by the instance.
@@ -70,7 +72,7 @@ function error() {
 
 TYPE=gp2
 ENCRYPTED=1
-MAX_ATTACHED_VOLUMES=16
+MAX_ATTACHED_VOLUMES=$(get_config_value .limits.max_ebs_volume_count)
 MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
 
 # parse options
