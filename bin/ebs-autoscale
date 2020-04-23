@@ -119,8 +119,8 @@ add_space () {
         VG=$(get_config_value .lvm.volume_group)
         LV=$(get_config_value .lvm.logical_volume)
         vgextend ${VG} ${DEVICE}
-        lvresize -l 100%VG $LV
-        resize2fs $LV
+        lvresize -l 100%VG /dev/mapper/${VG}-${LV}
+        resize2fs /dev/mapper/${VG}-${LV}
       fi
       logthis "Finished extending logical volume"
 
