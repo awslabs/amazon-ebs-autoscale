@@ -95,7 +95,7 @@ elif [ "${FILE_SYSTEM}" = "lvm.ext4" ]; then
   VG=$(get_config_value .lvm.volume_group)
   LV=$(get_config_value .lvm.logical_volume)
   pvcreate $DEVICE
-  vgcreate $VG $DV
+  vgcreate $VG $DEVICE
   lvcreate $VG -n $LV -l 100%VG
   mkfs.ext4 /dev/mapper/${VG}-${LV}
   mount /dev/mapper/${VG}-${LV} $MP
