@@ -98,8 +98,8 @@ elif [ "${FILE_SYSTEM}" = "lvm.ext4" ]; then
   vgcreate $VG $DEVICE
   lvcreate $VG -n $LV -l 100%VG
   mkfs.ext4 /dev/mapper/${VG}-${LV}
-  mount /dev/mapper/${VG}-${LV} $MP
-  echo -e "/dev/mapper/${VG}-${LV}\t${MP}\text4\tdefaults\t0\t0" |  tee -a /etc/fstab
+  mount /dev/mapper/${VG}-${LV} $MOUNTPOINT
+  echo -e "/dev/mapper/${VG}-${LV}\t${MOUNTPOINT}\text4\tdefaults\t0\t0" |  tee -a /etc/fstab
 else
   echo "Unknown file system type: ${FILE_SYSTEM}"
   exit 1
