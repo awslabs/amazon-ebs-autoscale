@@ -112,7 +112,6 @@ cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
 sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
-MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
@@ -124,7 +123,7 @@ fi
 
 # If a device is not given, or if the device is not valid
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume --size $SIZE --max-attached-volumes ${MAX_EBS_VOLUME_COUNT})
+  DEVICE=$(create-ebs-volume --size $SIZE)
 fi
 
 # create and mount the BTRFS filesystem
