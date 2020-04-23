@@ -34,7 +34,7 @@ set -x
 USAGE=$(cat <<EOF
 Install Amazon EBS Autoscale
 
-    $0 [options] <mount-point>
+    $0 [options] -m <mount-point>
 
 Options
 
@@ -46,6 +46,9 @@ Options
     -f, --file-system   btrfs | lvm.ext4
                         Filesystem to use (default: btrfs).
                         Options are btrfs or lvm.ext4
+
+    -m, --mountpoint    MOUNTPOINT
+                        Mount point for autoscale volume (default: /scratch)
 
     -s, --initial-size  SIZE
                         Initial size of the volume in GB. (Default: 100)
@@ -59,7 +62,7 @@ if [ "$#" -lt "1" ]; then
   exit 1
 fi
 
-MOUNTPOINT=$1
+MOUNTPOINT=/scratch
 SIZE=100
 DEVICE=""
 FILE_SYSTEM=btrfs
@@ -83,6 +86,10 @@ while (( "$#" )); do
             ;;
         -f|--file-system)
             FILE_SYSTEM=$2
+            shift 2
+            ;;
+        -m|--mountpoint)
+            MOUNTPOINT=$2
             shift 2
             ;;
         --) # end parsing
