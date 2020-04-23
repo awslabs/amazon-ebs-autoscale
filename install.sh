@@ -91,7 +91,7 @@ if [ "${FILE_SYSTEM}" = "btrfs" ]; then
   # add entry to fstab
   # allows non-root users to mount/unmount the filesystem
   echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
-elif [ "$FILE_SYSTEM}" = "lvm.ext4" ]; then
+elif [ "${FILE_SYSTEM}" = "lvm.ext4" ]; then
   VG=$(get_config_value .lvm.volume_group)
   LV=$(get_config_value .lvm.logical_volume)
   pvcreate $DEVICE
