@@ -35,6 +35,7 @@ initialize
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
+FILE_SYSTEM=$(get_config_value .filesystem)
 MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
 
@@ -111,8 +112,16 @@ add_space () {
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
       logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
-      btrfs device add ${DEVICE} ${MOUNTPOINT}
-      btrfs balance start -m ${MOUNTPOINT}
+      if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+        btrfs device add ${DEVICE} ${MOUNTPOINT}
+        btrfs balance start -m ${MOUNTPOINT}
+      else
+        VG=$(get_config_value .lvm.volume_group)
+        LV=$(get_config_value .lvm.logical_volume)
+        vgextend ${VG} ${DEVICE}
+        lvresize -l 100%VG $LV
+        resize2fs $LV
+      fi
       logthis "Finished extending logical volume"
 
     else

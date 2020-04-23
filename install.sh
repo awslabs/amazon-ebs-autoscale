@@ -31,7 +31,7 @@
 set -e
 
 function printUsage() {
-  echo "USAGE: $0 <MOUNT POINT> [<DEVICE>]"
+  echo "USAGE: $0 <MOUNT POINT> <DEVICE>"
 }
 
 if [ "$#" -lt "1" ]; then
@@ -65,7 +65,9 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
+sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json | \
+sed -e "s#/dev/xvdb#${DEVICE}#" > /etc/ebs-autoscale.json
+FILE_SYSTEM=$(get_config_value .filesystem)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
 ## Create filesystem
@@ -83,13 +85,25 @@ if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
 fi
 
 # create and mount the BTRFS filesystem
-mkfs.btrfs -f -d single $DEVICE
-mount $DEVICE $MOUNTPOINT
-
-# add entry to fstab
-# allows non-root users to mount/unmount the filesystem
-echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
-
+if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+  mkfs.btrfs -f -d single $DEVICE
+  mount $DEVICE $MOUNTPOINT
+  # add entry to fstab
+  # allows non-root users to mount/unmount the filesystem
+  echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
+elif [ "$FILE_SYSTEM}" = "lvm.ext4" ]; then
+  VG=$(get_config_value .lvm.volume_group)
+  LV=$(get_config_value .lvm.logical_volume)
+  pvcreate $DEVICE
+  vgcreate $VG $DV
+  lvcreate $VG -n $LV -l 100%VG
+  mkfs.ext4 /dev/mapper/${VG}-${LV}
+  mount /dev/mapper/${VG}-${LV} $MP
+  echo -e "/dev/mapper/${VG}-${LV}\t${MP}\text4\tdefaults\t0\t0" |  tee -a /etc/fstab
+else
+  echo "Unknown file system type: ${FILE_SYSTEM}"
+  exit 1
+fi
 
 ## Install service
 INIT_SYSTEM=$(detect_init_system 2>/dev/null)
