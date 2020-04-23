@@ -31,11 +31,6 @@
 set -e
 set -x
 
-<<<<<<< HEAD
-function printUsage() {
-  echo "USAGE: $0 <MOUNT POINT> <DEVICE>"
-}
-=======
 USAGE=$(cat <<EOF
 Install Amazon EBS Autoscale
 
@@ -54,7 +49,6 @@ Options
 
 EOF
 )
->>>>>>> master
 
 if [ "$#" -lt "1" ]; then
   echo "$USAGE"
@@ -117,14 +111,7 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-<<<<<<< HEAD
-sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json | \
-sed -e "s#/dev/xvdb#${DEVICE}#" > /etc/ebs-autoscale.json
-FILE_SYSTEM=$(get_config_value .filesystem)
-MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
-=======
 sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
->>>>>>> master
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
