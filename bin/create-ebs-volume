@@ -30,6 +30,9 @@
 
 set -e
 
+. /usr/local/amazon-ebs-autoscale/shared/utils.sh
+initialize
+
 USAGE=$(cat <<EOF
 Create EBS volume
 
@@ -46,8 +49,17 @@ Options
     --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
                         an encrypted volume
     
-    --max-attached-volumes
-                        Maximum number of attached volumes. (Default: 16)
+    --max-total-created-size SIZE_GB
+                        Maximum total size in GB of all volumes created by the instance.
+                        (Default: config.limits.max_logical_volume_size)
+                        
+    --max-attached-volumes N
+                        Maximum number of attached volumes.
+                        (Default: config.limits.max_ebs_volume_count)
+    
+    --max-created-volumes N
+                        Maximum number of volumes that can be created by the instance.
+                        (Default: MAX_ATTACHED_VOLUMES)
 EOF
 )
 
@@ -57,13 +69,16 @@ if [ "$#" -lt 1 ]; then
 fi
 
 function error() {
+    logthis "Error: $1"
     echo "Error: $1" >&2
     exit 1
 }
 
 TYPE=gp2
 ENCRYPTED=1
-MAX_ATTACHED_VOLUMES=16
+MAX_TOTAL_EBS_SIZE=$(get_config_value .limits.max_logical_volume_size)
+MAX_ATTACHED_VOLUMES=$(get_config_value .limits.max_ebs_volume_count)
+MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
 
 # parse options
 PARAMS=""
@@ -85,6 +100,18 @@ while (( "$#" )); do
             MAX_ATTACHED_VOLUMES=$2
             shift 2
             ;;
+        --max-created-volumes)
+            MAX_CREATED_VOLUMES=$2
+            shift 2
+            ;;
+        --max-total-created-size)
+            MAX_TOTAL_EBS_SIZE=$2
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
         --) # end parsing
             shift
             break
@@ -101,24 +128,25 @@ done
 
 eval set -- "$PARAMS"
 
+if [[ $VEROBSE ]]; then
+    set -x
+fi
+
 if [[ ! "$SIZE" ]]; then
     error "missing required argument --size"
 fi
 
-alphabet=( {b..z} )
+alphabet=( {a..z} )
 
 function get_next_logical_device() {
     for letter in ${alphabet[@]}; do
-        if [ ! -b "/dev/sd${letter}" ]; then
-            echo "/dev/sd${letter}"
+        # use /dev/xvdb* device names to avoid contention for /dev/sd* and /dev/xvda names
+        # only supported by HVM instances
+        if [ ! -b "/dev/xvdb${letter}" ]; then
+            echo "/dev/xvdb${letter}"
             break
         fi
     done
-}
-
-function get_metadata() {
-    local key=$1
-    echo `curl -s http://169.254.169.254/latest/meta-data/$key`
 }
 
 function create_and_attach_volume() {
@@ -129,17 +157,44 @@ function create_and_attach_volume() {
     local attached_volumes=$(
         aws ec2 describe-volumes \
             --region $region \
-            --filters Name=attachment.instance-id,Values=$instance_id
+            --filters "Name=attachment.instance-id,Values=$instance_id"
     )
 
-    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -eq "$MAX_ATTACHED_VOLUMES" ]; then
+    local created_volumes=$(
+        aws ec2 describe-volumes \
+            --region $region \
+            --filters "Name=tag:source-instance,Values=$instance_id"
+    )
+
+    local total_created_size=$(
+        aws ec2 describe-volumes \
+            --region $region \
+            --filters "Name=tag:source-instance,Values=$instance_id" \
+            --query 'sum(Volumes[].Size)' \
+            --output text
+    )
+
+    # check how much EBS storage this instance has created
+    if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
+        error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
+    fi
+
+    # check how many volumes this instance has created
+    if [ "`echo $created_volumes | jq '.Volumes | length'`" -ge "$MAX_CREATED_VOLUMES" ]; then
+        error "maximum number of created volumes reached ($MAX_CREATED_VOLUMES)"
+    fi
+
+    # check how many volumes are currently attached
+    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -ge "$MAX_ATTACHED_VOLUMES" ]; then
         error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
     fi
     
+    # check if there are available device names
     local device=$(get_next_logical_device)
     if [ -z "$device" ]; then
-        error "could not find unused device"
+        error "no device names available for volume"
     fi
+    logthis "next available device: $device"
 
     # create the volume
     local volume=$(\
@@ -147,15 +202,19 @@ function create_and_attach_volume() {
             --region $region \
             --availability-zone $availability_zone \
             --size $SIZE \
-            --volume-type $TYPE
+            --volume-type $TYPE \
+            --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]"
     )
     local volume_id=`echo $volume | jq -r '.VolumeId'`
+    logthis "created volume: $volume_id"
 
     aws ec2 wait volume-available --region $region --volume-ids $volume_id
+    logthis "volume $volume_id available"
 
     # Need to assure that the created volume is successfully attached to be
     # cost efficient.  If attachment fails, delete the volume.
     set +e
+    logthis "attaching volume $volume_id"
     aws ec2 attach-volume \
         --region $region \
         --device $device \
@@ -165,6 +224,7 @@ function create_and_attach_volume() {
     
     status="$?"
     if [ ! "$status" -eq 0 ]; then
+        logthis "deleting volume $volume_id"
         aws ec2 delete-volume \
             --region $region \
             --volume-id $volume_id \
@@ -174,8 +234,10 @@ function create_and_attach_volume() {
     fi
     set -e
 
+    logthis "waiting for volume $volume_id on filesystem"
     while true; do
         if [ -e "$device" ]; then
+            logthis "volume $volume_id on filesystem as $device"
             break
         fi
         sleep 1
@@ -187,6 +249,7 @@ function create_and_attach_volume() {
         --instance-id $instance_id \
         --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
     > /dev/null
+    logthis "volume $volume_id DeleteOnTermination ENABLED"
 
     echo $device
 }
