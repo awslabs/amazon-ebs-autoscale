@@ -49,11 +49,15 @@ Options
     --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
                         an encrypted volume
     
-    --max-attached-volumes
+    --max-total-created-size SIZE_GB
+                        Maximum total size in GB of all volumes created by the instance.
+                        (Default: config.limits.max_logical_volume_size)
+                        
+    --max-attached-volumes N
                         Maximum number of attached volumes.
                         (Default: config.limits.max_ebs_volume_count)
     
-    --max-created-volumes
+    --max-created-volumes N
                         Maximum number of volumes that can be created by the instance.
                         (Default: MAX_ATTACHED_VOLUMES)
 EOF
@@ -72,6 +76,7 @@ function error() {
 
 TYPE=gp2
 ENCRYPTED=1
+MAX_TOTAL_EBS_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_ATTACHED_VOLUMES=$(get_config_value .limits.max_ebs_volume_count)
 MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
 
@@ -99,6 +104,14 @@ while (( "$#" )); do
             MAX_CREATED_VOLUMES=$2
             shift 2
             ;;
+        --max-total-created-size)
+            MAX_TOTAL_EBS_SIZE=$2
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
         --) # end parsing
             shift
             break
@@ -114,6 +127,10 @@ while (( "$#" )); do
 done
 
 eval set -- "$PARAMS"
+
+if [[ $VEROBSE ]]; then
+    set -x
+fi
 
 if [[ ! "$SIZE" ]]; then
     error "missing required argument --size"
@@ -148,6 +165,19 @@ function create_and_attach_volume() {
             --region $region \
             --filters "Name=tag:source-instance,Values=$instance_id"
     )
+
+    local total_created_size=$(
+        aws ec2 describe-volumes \
+            --region $region \
+            --filters "Name=tag:source-instance,Values=$instance_id" \
+            --query 'sum(Volumes[].Size)' \
+            --output text
+    )
+
+    # check how much EBS storage this instance has created
+    if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
+        error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
+    fi
 
     # check how many volumes this instance has created
     if [ "`echo $created_volumes | jq '.Volumes | length'`" -ge "$MAX_CREATED_VOLUMES" ]; then
