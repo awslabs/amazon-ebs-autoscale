@@ -12,6 +12,8 @@ This is an example of a daemon process that monitors a BTRFS filesystem mountpoi
 6. That prerequisites are installed on the instance:
    1. jq
    2. btrfs-progs
+   3. lvm2
+   4. unzip
 
 Provided in this repo are:
 
