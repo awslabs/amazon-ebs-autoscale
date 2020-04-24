@@ -1,5 +1,11 @@
 {
     "mountpoint": "/scratch",
+    "filesystem": "btrfs",
+    "device": "/dev/xvdb",
+    "lvm": {
+      "volume_group": "autoscale_vg",
+      "logical_volume": "autoscale_lv"
+    },
     "detection_interval": 1,
     "limits": {
         "max_logical_volume_size": 8000,

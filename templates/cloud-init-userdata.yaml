@@ -8,7 +8,8 @@ packages:
   - sed
   - wget
   - git
-  - zip
+  - unzip
+  - lvm2
 
 runcmd:
   - curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
@@ -16,4 +17,4 @@ runcmd:
   - EBS_AUTOSCALE_VERSION=$(curl --silent "https://api.github.com/repos/awslabs/amazon-ebs-autoscale/releases/latest" | jq -r .tag_name)
   - cd /opt && git clone https://github.com/awslabs/amazon-ebs-autoscale.git
   - cd /opt/amazon-ebs-autoscale && git checkout $EBS_AUTOSCALE_VERSION
-  - sh /opt/amazon-ebs-autoscale/install.sh /scratch 2>&1 > /var/log/ebs-autoscale-install.log
+  - sh /opt/amazon-ebs-autoscale/install.sh 2>&1 > /var/log/ebs-autoscale-install.log
