@@ -127,8 +127,10 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json |
-sed -e "s#/filesystem#${FILE_SYSTEM}#" > /etc/ebs-autoscale.json
+cat ${BASEDIR}/config/ebs-autoscale.json | \
+  sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
+  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" \
+  > /etc/ebs-autoscale.json
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
