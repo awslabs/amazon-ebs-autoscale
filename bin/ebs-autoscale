@@ -137,6 +137,8 @@ add_space () {
       logthis "Error creating or attaching EBS volume"
     fi
 
+  else
+    logthis "Maximum volume size ($MAX_LOGICAL_VOLUME_SIZE) reached"
   fi
 }
 
@@ -164,6 +166,7 @@ while true; do
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
     logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
     add_space
+    LOG_COUNT=LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
     logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
