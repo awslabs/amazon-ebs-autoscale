@@ -122,11 +122,12 @@ add_space () {
 
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
-      logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
       if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+		logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
         btrfs device add ${DEVICE} ${MOUNTPOINT}
         btrfs balance start -m ${MOUNTPOINT}
       else
+		logthis "Adding device ${DEVICE} to logical volume /dev/mapper/${LVM_VG}-${LVM_LV}"
         vgextend ${LVM_VG} ${DEVICE}
         lvresize -l 100%VG /dev/mapper/${LVM_VG}-${LVM_LV}
         resize2fs /dev/mapper/${LVM_VG}-${LVM_LV}
