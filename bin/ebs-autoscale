@@ -35,6 +35,11 @@ initialize
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
+FILE_SYSTEM=$(get_config_value .filesystem)
+
+LVM_VG=$(get_config_value .lvm.volume_group)
+LVM_LV=$(get_config_value .lvm.logical_volume)
+
 MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
 
@@ -118,14 +123,22 @@ add_space () {
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
       logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
-      btrfs device add ${DEVICE} ${MOUNTPOINT}
-      btrfs balance start -m ${MOUNTPOINT}
+      if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+        btrfs device add ${DEVICE} ${MOUNTPOINT}
+        btrfs balance start -m ${MOUNTPOINT}
+      else
+        vgextend ${LVM_VG} ${DEVICE}
+        lvresize -l 100%VG /dev/mapper/${LVM_VG}-${LVM_LV}
+        resize2fs /dev/mapper/${LVM_VG}-${LVM_LV}
+      fi
       logthis "Finished extending logical volume"
 
     else
       logthis "Error creating or attaching EBS volume"
     fi
 
+  else
+    logthis "Maximum volume size ($MAX_LOGICAL_VOLUME_SIZE) reached"
   fi
 }
 
@@ -153,6 +166,7 @@ while true; do
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
     logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
     add_space
+    LOG_COUNT=LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
     logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
