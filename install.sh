@@ -108,17 +108,18 @@ while (( "$#" )); do
     esac
 done
 
-eval set -- "$PARAMS"
+# This code overrides MOUNTPOINT that was set above
+#eval set -- "$PARAMS"
 
 # for backwards compatibility evaluate positional parameters like previous 2.0.x and 2.1.x releases
 # this will be removed in the future
-if [ ! -z "PARAMS" ]; then
-  MOUNTPOINT=$1
+#if [ ! -z "PARAMS" ]; then
+#  MOUNTPOINT=$1
 
-  if [ ! -z "$2" ]; then
-    DEVICE=$2
-  fi
-fi
+#  if [ ! -z "$2" ]; then
+#    DEVICE=$2
+#  fi
+#fi
 
 # Install executables
 # make executables available on standard PATH
