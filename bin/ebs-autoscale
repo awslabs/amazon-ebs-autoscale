@@ -122,11 +122,12 @@ add_space () {
 
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
-      logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
       if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+        logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
         btrfs device add ${DEVICE} ${MOUNTPOINT}
         btrfs balance start -m ${MOUNTPOINT}
       else
+        logthis "Adding device ${DEVICE} to logical volume /dev/mapper/${LVM_VG}-${LVM_LV}"
         vgextend ${LVM_VG} ${DEVICE}
         lvresize -l 100%VG /dev/mapper/${LVM_VG}-${LVM_LV}
         resize2fs /dev/mapper/${LVM_VG}-${LVM_LV}
@@ -169,7 +170,7 @@ while true; do
     LOG_COUNT=LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
-    logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
+    logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Available ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
     LOG_COUNT=0
   fi
   THRESHOLD=$(calc_threshold)
