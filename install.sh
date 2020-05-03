@@ -108,7 +108,6 @@ while (( "$#" )); do
     esac
 done
 
-# This code overrides MOUNTPOINT that was set above
 eval set -- "$PARAMS"
 
 # for backwards compatibility evaluate positional parameters like previous 2.0.x and 2.1.x releases
