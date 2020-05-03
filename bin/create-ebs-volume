@@ -197,15 +197,27 @@ function create_and_attach_volume() {
     logthis "next available device: $device"
 
     # create the volume
+    local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
     local volume=$(\
         aws ec2 create-volume \
             --region $region \
             --availability-zone $availability_zone \
             --size $SIZE \
             --volume-type $TYPE \
-            --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]"
+            --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]" \
+        2> $tmpfile
     )
     local volume_id=`echo $volume | jq -r '.VolumeId'`
+
+    if [ -z "$volume_id" ]; then
+        logthis "$(cat $tmpfile)"  # log captured error
+        cat $tmpfile               # print captured error (e.g. when called during install)
+        rm $tmpfile
+
+        error "could not create volume"
+    fi
+    rm $tmpfile
+
     logthis "created volume: $volume_id"
 
     aws ec2 wait volume-available --region $region --volume-ids $volume_id
