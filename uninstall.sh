@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -x
 
 BASEDIR=$(dirname $0)
 
@@ -33,7 +33,9 @@ umount $MOUNTPOINT
 attached_volumes=$(
     aws ec2 describe-volumes \
         --region $region \
-        --filters "Name=attachment.instance-id,Values=$instance_id"
+        --filters "Name=tag:source-instance,Values=$instance_id" \
+        --query 'Volumes[].VolumeId' \
+        --output text
 )
 
 for volume in $attached_volumes; do
