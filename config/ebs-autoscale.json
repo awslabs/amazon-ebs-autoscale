@@ -5,6 +5,11 @@
       "volume_group": "autoscale_vg",
       "logical_volume": "autoscale_lv"
     },
+    "volume": {
+        "type": "gp2",
+        "iops": 3000,
+        "encrypted": 1
+    },
     "detection_interval": 1,
     "limits": {
         "max_logical_volume_size": 8000,

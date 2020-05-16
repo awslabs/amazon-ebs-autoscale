@@ -46,6 +46,8 @@ Options
 
     -t, --type          Type of volume. (Default: gp2)
 
+    -i, --iops          IOPS for volume. Only valid if type=io1. (Default: 3000)
+
     --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
                         an encrypted volume
     
@@ -74,8 +76,9 @@ function error() {
     exit 1
 }
 
-TYPE=gp2
-ENCRYPTED=1
+TYPE=$(get_config_value .volume.type)
+IOPS=$(get_config_value .volume.iops)
+ENCRYPTED=$(get_config_value .volume.encrypted)
 MAX_TOTAL_EBS_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_ATTACHED_VOLUMES=$(get_config_value .limits.max_ebs_volume_count)
 MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
@@ -90,6 +93,10 @@ while (( "$#" )); do
             ;;
         -t|--type)
             TYPE=$2
+            shift 2
+            ;;
+        -i|--iops)
+            IOPS=$2
             shift 2
             ;;
         --not-encrypted)
@@ -198,12 +205,15 @@ function create_and_attach_volume() {
 
     # create the volume
     local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
+    local volume_opts="--volume-type $TYPE"
+    if [ "$TYPE" == "io1" ]; then volume_opts="$volume_opts --iops $IOPS"; fi
+    if [ "$ENCRYPTION" != "1" ]; then volume_opts="$volume_opts --no-encryption"; fi
     local volume=$(\
         aws ec2 create-volume \
             --region $region \
             --availability-zone $availability_zone \
             --size $SIZE \
-            --volume-type $TYPE \
+            $volume_opts \
             --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]" \
         2> $tmpfile
     )
