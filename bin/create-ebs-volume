@@ -205,14 +205,13 @@ function create_and_attach_volume() {
 
     # create the volume
     local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
-    local volume_opts="--volume-type $TYPE"
+    local volume_opts="--size $SIZE --volume-type $TYPE"
     if [ "$TYPE" == "io1" ]; then volume_opts="$volume_opts --iops $IOPS"; fi
     if [ "$ENCRYPTION" != "1" ]; then volume_opts="$volume_opts --no-encrypted"; fi
     local volume=$(\
         aws ec2 create-volume \
             --region $region \
             --availability-zone $availability_zone \
-            --size $SIZE \
             $volume_opts \
             --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id}]" \
         2> $tmpfile
