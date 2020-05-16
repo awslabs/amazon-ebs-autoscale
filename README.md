@@ -1,6 +1,6 @@
 # Amazon Elastic Block Store Autoscale
 
-This is an example of a daemon process that monitors a filesystem mountpoint and automatically expands it when free space falls below a configured threshold. New [Amazon EBS](https://aws.amazon.com/ebs/) volumes are added to the instance as necessary and the underlying filesystem ([BTRFS](http://btrfs.wiki.kernel.org) or [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)) with [ext4](https://en.wikipedia.org/wiki/Ext4)) expands while still mounted. As new devices are added.
+This is an example of a daemon process that monitors a filesystem mountpoint and automatically expands it when free space falls below a configured threshold. New [Amazon EBS](https://aws.amazon.com/ebs/) volumes are added to the instance as necessary and the underlying filesystem ([BTRFS](http://btrfs.wiki.kernel.org) or [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)) with [ext4](https://en.wikipedia.org/wiki/Ext4)) expands as new devices are added.
 
 ## Assumptions:
 
@@ -18,11 +18,12 @@ This is an example of a daemon process that monitors a filesystem mountpoint and
 Provided in this repo are:
 
 1. A [script](bin/create-ebs-volume) that creates and attaches new EBS volumes to the current instance
-2. The daemon [script](bin/ebs-autoscale) that monitors disk space and expands the BTRFS filesystem by leveraging the above script to add EBS volumes, expand the filesystem, and rebalance the metadata blocks
+2. A daemon [script](bin/ebs-autoscale) that monitors disk space and expands the targeted filesystem using the above script to add EBS volumes as needed
 3. Service definitions for [upstart](service/upstart/ebs-autoscale.conf) and [systemd](service/systemd/ebs-autoscale.service)
 4. Configuration files for the [service](config/ebs-autoscale.json) and [logrotate](config/ebs-autoscale.logrotate)
 5. An [installation script](install.sh) to configure and install all of the above
-6. An example [cloud-init](templates/cloud-init-userdata.yaml) script that can be used as EC2 instance user-data for automated installation
+6. An [Uninstallation script](uninstall.sh) to remove the service daemon, unmount the filesystem, and detach and delete any ebs volumes created by the daemon
+7. An example [cloud-init](templates/cloud-init-userdata.yaml) script that can be used as EC2 instance user-data for automated installation
 
 ## Installation
 
@@ -43,7 +44,7 @@ that installs required packages and runs the initialization script. By default t
 ```text
 Install Amazon EBS Autoscale
 
-    install.sh [options] [-m <mount-point>]
+    install.sh [options] [[-m] <mount-point>]
 
 Options
 
