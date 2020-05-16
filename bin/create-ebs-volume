@@ -207,7 +207,7 @@ function create_and_attach_volume() {
     local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
     local volume_opts="--size $SIZE --volume-type $TYPE"
     if [ "$TYPE" == "io1" ]; then volume_opts="$volume_opts --iops $IOPS"; fi
-    if [ "$ENCRYPTION" != "1" ]; then volume_opts="$volume_opts --no-encrypted"; fi
+    if [ "$ENCRYPTED" == "1" ]; then volume_opts="$volume_opts --encrypted"; fi
     local volume=$(\
         aws ec2 create-volume \
             --region $region \
@@ -227,7 +227,7 @@ function create_and_attach_volume() {
     fi
     rm $tmpfile
 
-    logthis "created volume: $volume_id"
+    logthis "created volume: $volume_id [ $volume_opts ]"
 
     aws ec2 wait volume-available --region $region --volume-ids $volume_id
     logthis "volume $volume_id available"
