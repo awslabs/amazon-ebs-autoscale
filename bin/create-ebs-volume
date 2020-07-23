@@ -161,18 +161,21 @@ function create_and_attach_volume() {
     local availability_zone=$(get_metadata placement/availability-zone)
     local region=${availability_zone%?}
 
+    sleep 1
     local attached_volumes=$(
         aws ec2 describe-volumes \
             --region $region \
             --filters "Name=attachment.instance-id,Values=$instance_id"
     )
 
+    sleep 1
     local created_volumes=$(
         aws ec2 describe-volumes \
             --region $region \
             --filters "Name=tag:source-instance,Values=$instance_id"
     )
 
+    sleep 1
     local total_created_size=$(
         aws ec2 describe-volumes \
             --region $region \
