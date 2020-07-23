@@ -56,11 +56,15 @@ until [ -d "${MOUNTPOINT}" ]; do
 done
 
 get_num_devices() {
-  # determine the number of attached devices on this instance
+  #This tag is added to all devices attached by this ebs-autoscale in the create-ebs-volume script
+  tag=amazon-ebs-autoscale-creation-time
+
+  # determine the number of devices attached by ebs-autoscale on this instance. Volumes attached in other ways are
+  # excluded as they aren't relevant to autoscaling
   local attached_volumes=$(
       aws ec2 describe-volumes \
           --region $AWS_REGION \
-          --filters Name=attachment.instance-id,Values=$INSTANCE_ID
+          --filters Name=attachment.instance-id,Values=$INSTANCE_ID, Name=tag-key,Values=$tag
   )
 
   echo "`echo $attached_volumes | jq '.Volumes | length'`"
