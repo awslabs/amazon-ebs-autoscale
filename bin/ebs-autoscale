@@ -73,12 +73,12 @@ get_num_devices() {
             --filters Name=attachment.instance-id,Values=$INSTANCE_ID Name=tag-key,Values=$TAG
        )
       sleep $sleep_time
-      sleep_time=${sleep_time * 2 }
+      sleep_time=$(( sleep_time * 2 ))
 
-      $attached_volumes=$(echo $attached_volumes | jq '.Volumes | length'`)
+      attached_volumes=$(echo "$attached_volumes" | jq '.Volumes | length')
   done
 
-  echo $attached_volumes
+  echo "$attached_volumes"
 }
 
 calc_threshold() {
