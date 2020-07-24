@@ -63,7 +63,6 @@ get_num_devices() {
   # determine the number of devices attached by ebs-autoscale on this instance. Volumes attached in other ways are
   # excluded as they aren't relevant to autoscaling
   local attached_volumes=""
-  local attempt=0
   local max_attempts=10
 
   # By waiting until the attached_volumes value is >=0 we will retry with backoff hopefully avoiding request limits
@@ -83,7 +82,8 @@ get_num_devices() {
       fi
 
       if [ $i -eq $max_attempts ] ; then
-        logthis "Could not determine the number of attached_volumes after $attempt attempts. Last response was: $attached_volumes_response"
+        logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes_response"
+        break
       fi
 
       sleep $(( 2 ** i ))
