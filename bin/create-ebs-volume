@@ -216,8 +216,6 @@ function create_and_attach_volume() {
         sleep $(( 2 ** i ))
     done
 
-    local
-
     # check how much EBS storage this instance has created
     if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
         error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
