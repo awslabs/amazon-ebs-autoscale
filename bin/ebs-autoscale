@@ -78,7 +78,7 @@ get_num_devices() {
       $attached_volumes=$(echo $attached_volumes | jq '.Volumes | length'`)
   done
 
-  echo attached_volumes
+  echo $attached_volumes
 }
 
 calc_threshold() {
