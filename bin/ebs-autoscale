@@ -70,10 +70,10 @@ get_num_devices() {
       attached_volumes=$(
       aws ec2 describe-volumes \
           --region $AWS_REGION \
-          --filters Name=attachment.instance-id,Values=$INSTANCE_ID, Name=tag-key,Values=$tag
-       sleep $sleep_time
-       sleep_time=${sleep_time * 2 }
-  )
+          --filters Name=attachment.instance-id,Values=$INSTANCE_ID Name=tag-key,Values=$tag
+       )
+      sleep $sleep_time
+      sleep_time=${sleep_time * 2 }
   done
 
   echo "`echo $attached_volumes | jq '.Volumes | length'`"
