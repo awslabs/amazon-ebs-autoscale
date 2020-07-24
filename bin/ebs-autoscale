@@ -56,7 +56,8 @@ until [ -d "${MOUNTPOINT}" ]; do
 done
 
 get_num_devices() {
-  #This tag is added to all devices attached by this ebs-autoscale in the create-ebs-volume script
+  # This tag is added to all devices attached by this ebs-autoscale in the create-ebs-volume script it's presence indicates
+  # a device that has been added by auto-expansion rather than an EBS volume attached for other reasons or at startup.
   TAG=amazon-ebs-autoscale-creation-time
 
   # determine the number of devices attached by ebs-autoscale on this instance. Volumes attached in other ways are
