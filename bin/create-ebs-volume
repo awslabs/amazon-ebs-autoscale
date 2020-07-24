@@ -233,6 +233,7 @@ function create_and_attach_volume() {
 
     logthis "created volume: $volume_id [ $volume_opts ]"
 
+    sleep 10
     aws ec2 wait volume-available --region $region --volume-ids $volume_id
     logthis "volume $volume_id available"
 
@@ -240,6 +241,8 @@ function create_and_attach_volume() {
     # cost efficient.  If attachment fails, delete the volume.
     set +e
     logthis "attaching volume $volume_id"
+
+    sleep 1
     aws ec2 attach-volume \
         --region $region \
         --device $device \
