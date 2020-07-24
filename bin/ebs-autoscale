@@ -62,20 +62,30 @@ get_num_devices() {
   # determine the number of devices attached by ebs-autoscale on this instance. Volumes attached in other ways are
   # excluded as they aren't relevant to autoscaling
   local attached_volumes=""
-  local sleep_time=1
+  local attempt=0
+  local max_attempts=10
 
   # By waiting until the attached_volumes value is >=0 we will retry with backoff hopefully avoiding request limits
-  # eventually getting a usable value.
-  until [ $attached_volumes -ge 0 ] 2> /dev/null ; do
-      attached_volumes=$(
+  # eventually getting a usable value. The >= 0 test is really a test that we got an integer response
+  for i in {1..$max_attempts} ; do
+      local attached_volumes_response=""
+
+      attached_volumes_response=$(
         aws ec2 describe-volumes \
             --region $AWS_REGION \
             --filters Name=attachment.instance-id,Values=$INSTANCE_ID Name=tag-key,Values=$TAG
        )
-      sleep $sleep_time
-      sleep_time=$(( sleep_time * 2 ))
 
-      attached_volumes=$(echo "$attached_volumes" | jq '.Volumes | length')
+      attached_volumes=$(echo "$attached_volumes_response" | jq '.Volumes | length')
+      if [ "$attached_volumes" -ge 0 ]; then
+          break
+      fi
+
+      if [ $i -eq $max_attempts ] ; then
+        logthis "Could not determine the number of attached_volumes after $attempt attempts. Last response was: $attached_volumes_response"
+      fi
+
+      sleep $(( 2 ** i ))
   done
 
   echo "$attached_volumes"
