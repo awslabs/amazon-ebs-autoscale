@@ -164,7 +164,7 @@ function create_and_attach_volume() {
     local max_attempts=10
     local attached_volumes=""
 
-    for i in {1..$max_attempts} ; do
+    for i in $(eval echo "{0..$max_attempts}") ; do
         attached_volumes=$(
           aws ec2 describe-volumes \
             --region $region \
@@ -181,7 +181,7 @@ function create_and_attach_volume() {
     done
 
     local created_volumes=""
-    for i in {1..$max_attempts} ; do
+    for i in $(eval echo "{0..$max_attempts}") ; do
         created_volumes=$(
             aws ec2 describe-volumes \
                 --region $region \
@@ -198,7 +198,7 @@ function create_and_attach_volume() {
     done
 
     local total_created_size=""
-    for i in {1..$max_attempts} ; do
+    for i in $(eval echo "{0..$max_attempts}") ; do
         total_created_size=$(
             aws ec2 describe-volumes \
                 --region $region \
@@ -248,7 +248,7 @@ function create_and_attach_volume() {
     local timestamp=$(date "+%F %T UTC%z")  # YYYY-mm-dd HH:MM:SS UTC+0000
 
     local volume=""
-    for i in {1..$max_attempts} ; do
+    for i in $(eval echo "{0..$max_attempts}") ; do
       local volume=$(\
           aws ec2 create-volume \
               --region $region \
