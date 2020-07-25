@@ -161,25 +161,60 @@ function create_and_attach_volume() {
     local availability_zone=$(get_metadata placement/availability-zone)
     local region=${availability_zone%?}
 
-    local attached_volumes=$(
-        aws ec2 describe-volumes \
+    local max_attempts=10
+    local attached_volumes=""
+
+    for i in $(eval echo "{0..$max_attempts}") ; do
+        attached_volumes=$(
+          aws ec2 describe-volumes \
             --region $region \
             --filters "Name=attachment.instance-id,Values=$instance_id"
-    )
+        )
 
-    local created_volumes=$(
-        aws ec2 describe-volumes \
-            --region $region \
-            --filters "Name=tag:source-instance,Values=$instance_id"
-    )
+        if [ $? -eq 0 ]; then
+             break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes"
+            break
+        fi
+        sleep $(( 2 ** i ))
+    done
 
-    local total_created_size=$(
-        aws ec2 describe-volumes \
-            --region $region \
-            --filters "Name=tag:source-instance,Values=$instance_id" \
-            --query 'sum(Volumes[].Size)' \
-            --output text
-    )
+    local created_volumes=""
+    for i in $(eval echo "{0..$max_attempts}") ; do
+        created_volumes=$(
+            aws ec2 describe-volumes \
+                --region $region \
+                --filters "Name=tag:source-instance,Values=$instance_id"
+        )
+
+        if [ $? -eq 0 ]; then
+             break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not determine the number of created_volumes after $i attempts. Last response was: $created_volumes"
+            break
+        fi
+        sleep $(( 2 ** i ))
+    done
+
+    local total_created_size=""
+    for i in $(eval echo "{0..$max_attempts}") ; do
+        total_created_size=$(
+            aws ec2 describe-volumes \
+                --region $region \
+                --filters "Name=tag:source-instance,Values=$instance_id" \
+                --query 'sum(Volumes[].Size)' \
+                --output text
+        )
+
+        if [ $? -eq 0 ]; then
+             break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not determine the total_created_size after $i attempts. Last response was: $total_created_size"
+            break
+        fi
+        sleep $(( 2 ** i ))
+    done
 
     # check how much EBS storage this instance has created
     if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
@@ -209,14 +244,27 @@ function create_and_attach_volume() {
     if [ "$TYPE" == "io1" ]; then volume_opts="$volume_opts --iops $IOPS"; fi
     if [ "$ENCRYPTED" == "1" ]; then volume_opts="$volume_opts --encrypted"; fi
     local timestamp=$(date "+%F %T UTC%z")  # YYYY-mm-dd HH:MM:SS UTC+0000
-    local volume=$(\
-        aws ec2 create-volume \
-            --region $region \
-            --availability-zone $availability_zone \
-            $volume_opts \
-            --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]" \
-        2> $tmpfile
-    )
+
+    local volume=""
+    for i in $(eval echo "{0..$max_attempts}") ; do
+      local volume=$(\
+          aws ec2 create-volume \
+              --region $region \
+              --availability-zone $availability_zone \
+              $volume_opts \
+              --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]" \
+          2> $tmpfile
+      )
+
+      if [ $? -eq 0 ]; then
+           break
+      elif [ $i -eq $max_attempts ]; then
+          logthis "Could not create a volume after $i attempts. Last response was: $volume"
+          break
+      fi
+      sleep $(( 2 ** i ))
+    done
+
     local volume_id=`echo $volume | jq -r '.VolumeId'`
 
     if [ -z "$volume_id" ]; then
@@ -230,13 +278,20 @@ function create_and_attach_volume() {
 
     logthis "created volume: $volume_id [ $volume_opts ]"
 
-    aws ec2 wait volume-available --region $region --volume-ids $volume_id
-    logthis "volume $volume_id available"
+    # In theory this shouldn't need to loop as aws ec2 wait will retry but I have seen it exceed request limits
+    for i in {1..3} ; do
+       if aws ec2 wait volume-available --region $region --volume-ids $volume_id; then
+         logthis "volume $volume_id available"
+         break
+       fi
+    done
 
     # Need to assure that the created volume is successfully attached to be
     # cost efficient.  If attachment fails, delete the volume.
     set +e
     logthis "attaching volume $volume_id"
+
+    sleep 1
     aws ec2 attach-volume \
         --region $region \
         --device $device \
