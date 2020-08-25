@@ -161,6 +161,16 @@ function create_and_attach_volume() {
     local availability_zone=$(get_metadata placement/availability-zone)
     local region=${availability_zone%?}
 
+    local instance_tags=""
+    # Render instance tags to match: --tag-specification
+    instance_tags=$(
+      aws ec2 describe-tags \
+        --region $region \
+        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | tr : =
+      )
+      # Output Example:
+      # {Key=Name,Value=Jenkins},{Key=Owner,Value=DevOps}
+
     local max_attempts=10
     local attached_volumes=""
 
@@ -252,7 +262,7 @@ function create_and_attach_volume() {
               --region $region \
               --availability-zone $availability_zone \
               $volume_opts \
-              --tag-specification "ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]" \
+              --tag-specification "ResourceType=volume,Tags=[$instance_tags,{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]" \
           2> $tmpfile
       )
 
