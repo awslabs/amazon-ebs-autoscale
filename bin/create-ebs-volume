@@ -163,13 +163,13 @@ function create_and_attach_volume() {
 
     local instance_tags=""
     # Render instance tags to match: --tag-specification
+    # Output Example:
+    # {Key=Name,Value=Jenkins},{Key=Owner,Value=DevOps}
     instance_tags=$(
       aws ec2 describe-tags \
         --region $region \
         --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | tr : =
       )
-      # Output Example:
-      # {Key=Name,Value=Jenkins},{Key=Owner,Value=DevOps}
 
     local max_attempts=10
     local attached_volumes=""
