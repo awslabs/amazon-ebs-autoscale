@@ -8,7 +8,7 @@ This is an example of a daemon process that monitors a filesystem mountpoint and
 2. The instance and AMI use HVM virtualization
 3. The instance AMI allows device names like `/dev/xvdb*` and will not remap them
 4. The instance is using a Linux based OS with either **upstart** or **systemd** system initialization
-5. The instance has a IAM Instance Profile with appropriate permissions to create and attach new EBS volumes. See the [IAM Instance Profile](#iam_instance_profile) section below for more details
+5. The instance has a IAM Instance Profile with appropriate permissions to create and attach new EBS volumes. See the [IAM Instance Profile](#a-note-on-the-iam-instance-profile) section below for more details
 6. That prerequisites are installed on the instance:
    1. jq
    2. btrfs-progs
