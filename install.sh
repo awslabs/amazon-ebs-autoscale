@@ -163,7 +163,7 @@ fi
 
 # If a device is not given, or if the device is not valid
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume --size $SIZE --type $TYPE)
+  DEVICE=$(create-ebs-volume --size $SIZE --type $VOLUMETYPE)
 fi
 
 # create and mount the BTRFS filesystem
