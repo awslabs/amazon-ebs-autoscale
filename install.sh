@@ -52,6 +52,9 @@ Options
 
     -m, --mountpoint    MOUNTPOINT
                         Mount point for autoscale volume (default: /scratch)
+                        
+    -t, --type    TYPE
+                        Volume type (default: gp2)
 
     -s, --initial-size  SIZE
                         Initial size of the volume in GB. (Default: 100)
@@ -66,6 +69,7 @@ TYPE=gp3
 DEVICE=""
 FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
+TYPE=gp3
 
 
 . ${BASEDIR}/shared/utils.sh
@@ -94,6 +98,10 @@ while (( "$#" )); do
             ;;
         -m|--mountpoint)
             MOUNTPOINT=$2
+            shift 2
+            ;;
+        -t|--type)
+            TYPE=$2
             shift 2
             ;;
         -h|--help)
@@ -159,7 +167,7 @@ fi
 
 # If a device is not given, or if the device is not valid
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume --size $SIZE)
+  DEVICE=$(create-ebs-volume --size $SIZE --type $TYPE)
 fi
 
 # create and mount the BTRFS filesystem
