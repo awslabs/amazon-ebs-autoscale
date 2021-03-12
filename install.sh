@@ -53,7 +53,7 @@ Options
     -m, --mountpoint    MOUNTPOINT
                         Mount point for autoscale volume (default: /scratch)
                         
-    -t, --type    TYPE
+    -t, --type       VOLUMETYPE
                         Volume type (default: gp2)
 
     -s, --initial-size  SIZE
@@ -65,11 +65,10 @@ EOF
 
 MOUNTPOINT=/scratch
 SIZE=100
-TYPE=gp3
+VOLUMETYPE=gp3
 DEVICE=""
 FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
-TYPE=gp3
 
 
 . ${BASEDIR}/shared/utils.sh
@@ -85,7 +84,7 @@ while (( "$#" )); do
             shift 2
             ;;
         -t|--initial-type)
-            TYPE=$2
+            VOLUMETYPE=$2
             shift 2
             ;;
         -d|--initial-device)
@@ -98,10 +97,6 @@ while (( "$#" )); do
             ;;
         -m|--mountpoint)
             MOUNTPOINT=$2
-            shift 2
-            ;;
-        -t|--type)
-            TYPE=$2
             shift 2
             ;;
         -h|--help)
@@ -154,6 +149,7 @@ cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 # install default config
 cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
+  sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
   sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" \
   > /etc/ebs-autoscale.json
 
