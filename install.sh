@@ -62,9 +62,11 @@ EOF
 
 MOUNTPOINT=/scratch
 SIZE=100
+TYPE=gp3
 DEVICE=""
 FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
+
 
 . ${BASEDIR}/shared/utils.sh
 
@@ -76,6 +78,10 @@ while (( "$#" )); do
     case "$1" in
         -s|--initial-size)
             SIZE=$2
+            shift 2
+            ;;
+        -t|--initial-type)
+            TYPE=$2
             shift 2
             ;;
         -d|--initial-device)
