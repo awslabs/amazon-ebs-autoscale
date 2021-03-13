@@ -57,14 +57,14 @@ Options
                         Volume type (default: gp3)
 
     -s, --initial-size  SIZE
-                        Initial size of the volume in GB. (Default: 100)
+                        Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
     
 EOF
 )
 
 MOUNTPOINT=/scratch
-SIZE=100
+SIZE=200
 VOLUMETYPE=gp3
 DEVICE=""
 FILE_SYSTEM=btrfs
