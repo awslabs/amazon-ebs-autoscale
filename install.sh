@@ -53,8 +53,8 @@ Options
     -m, --mountpoint    MOUNTPOINT
                         Mount point for autoscale volume (default: /scratch)
                         
-    -t, --type       VOLUMETYPE
-                        Volume type (default: gp2)
+    -t, --volume-type   VOLUMETYPE
+                        Volume type (default: gp3)
 
     -s, --initial-size  SIZE
                         Initial size of the volume in GB. (Default: 100)
@@ -83,7 +83,7 @@ while (( "$#" )); do
             SIZE=$2
             shift 2
             ;;
-        -t|--initial-type)
+        -t|--volume-type)
             VOLUMETYPE=$2
             shift 2
             ;;
