@@ -64,8 +64,11 @@ Options
                         Mount point for autoscale volume (default: /scratch)
 
     -s, --initial-size  SIZE
-                        Initial size of the volume in GB. (Default: 100)
+                        Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
+    
+    -t, --volume-type   VOLUMETYPE
+                        EBS volume type to use. (Default: gp3)
 
 ```
 
