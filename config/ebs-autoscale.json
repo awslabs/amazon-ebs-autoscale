@@ -6,7 +6,7 @@
       "logical_volume": "autoscale_lv"
     },
     "volume": {
-        "type": "gp2",
+        "type": "%%VOLUMETYPE%%",
         "iops": 3000,
         "encrypted": 1
     },

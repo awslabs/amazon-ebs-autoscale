@@ -52,19 +52,24 @@ Options
 
     -m, --mountpoint    MOUNTPOINT
                         Mount point for autoscale volume (default: /scratch)
+                        
+    -t, --volume-type   VOLUMETYPE
+                        Volume type (default: gp3)
 
     -s, --initial-size  SIZE
-                        Initial size of the volume in GB. (Default: 100)
+                        Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
     
 EOF
 )
 
 MOUNTPOINT=/scratch
-SIZE=100
+SIZE=200
+VOLUMETYPE=gp3
 DEVICE=""
 FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
+
 
 . ${BASEDIR}/shared/utils.sh
 
@@ -76,6 +81,10 @@ while (( "$#" )); do
     case "$1" in
         -s|--initial-size)
             SIZE=$2
+            shift 2
+            ;;
+        -t|--volume-type)
+            VOLUMETYPE=$2
             shift 2
             ;;
         -d|--initial-device)
@@ -140,6 +149,7 @@ cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 # install default config
 cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
+  sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
   sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" \
   > /etc/ebs-autoscale.json
 
@@ -153,7 +163,7 @@ fi
 
 # If a device is not given, or if the device is not valid
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume --size $SIZE)
+  DEVICE=$(create-ebs-volume --size $SIZE --type $VOLUMETYPE)
 fi
 
 # create and mount the BTRFS filesystem
