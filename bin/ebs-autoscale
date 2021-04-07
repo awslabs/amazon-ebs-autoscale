@@ -32,6 +32,7 @@
 
 initialize
 
+MAX_EBS_VOLUME_SIZE=$(get_config_value .limits.max_ebs_volume_size)
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
 
@@ -120,13 +121,29 @@ calc_new_size() {
   local new_size=150
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
-    new_size=300
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ]; then
+      new_size=300 
+    else 
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
-    new_size=1000
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ]; then
+      new_size=1000 
+    else 
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   elif [ "$num_devices" -gt "10" ]; then
-    new_size=1500
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "1499" ]; then
+      new_size=1500 
+    else 
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   else
-    new_size=150
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "149" ]; then
+      new_size=150 
+    else 
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   fi
 
   echo ${new_size}
