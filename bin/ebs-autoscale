@@ -116,32 +116,32 @@ calc_threshold() {
 calc_new_size() {
   # calculates the size to use for new ebs volumes to expand space
   # new volume sizes increase as the number of attached volumes increase
-  
+
   local num_devices=$(get_num_devices)
   local new_size=150
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ]; then
-      new_size=300 
-    else 
+      new_size=300
+    else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ]; then
-      new_size=1000 
-    else 
+      new_size=1000
+    else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi
   elif [ "$num_devices" -gt "10" ]; then
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "1499" ]; then
-      new_size=1500 
-    else 
+      new_size=1500
+    else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi
   else
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "149" ]; then
-      new_size=150 
-    else 
+      new_size=150
+    else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi
   fi
@@ -210,7 +210,7 @@ while true; do
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
     logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
     add_space
-    LOG_COUNT=LOG_INTERVAL
+    LOG_COUNT=$LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
     logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Available ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
