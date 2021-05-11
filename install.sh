@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2018 Amazon.com, Inc. or its affiliates.
+# Copyright Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions are met:
@@ -29,28 +29,110 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 
 set -e
+set -x
 
-function printUsage() {
-  echo "USAGE: $0 <MOUNT POINT> [<DEVICE>]"
-}
+USAGE=$(cat <<EOF
+Install Amazon EBS Autoscale
 
-if [ "$#" -lt "1" ]; then
-  printUsage
-  exit 1
-fi
+    $0 [options] [[-m] <mount-point>]
 
-MOUNTPOINT=$1
-DEVICE=$2
+Options
+
+    -d, --initial-device DEVICE
+                        Initial device to use for mountpoint - e.g. /dev/xvdba.
+                        (Default: none - automatically create and attaches a volume)
+                        If provided --initial-size is ignored.
+
+    -f, --file-system   btrfs | lvm.ext4
+                        Filesystem to use (default: btrfs).
+                        Options are btrfs or lvm.ext4
+
+    -h, --help
+                        Print help and exit.
+
+    -m, --mountpoint    MOUNTPOINT
+                        Mount point for autoscale volume (default: /scratch)
+                        
+    -t, --volume-type   VOLUMETYPE
+                        Volume type (default: gp3)
+
+    -s, --initial-size  SIZE
+                        Initial size of the volume in GB. (Default: 200)
+                        Only used if --initial-device is NOT specified.
+    
+EOF
+)
+
+MOUNTPOINT=/scratch
+SIZE=200
+VOLUMETYPE=gp3
+DEVICE=""
+FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
+
 
 . ${BASEDIR}/shared/utils.sh
 
 initialize
 
+# parse options
+PARAMS=""
+while (( "$#" )); do
+    case "$1" in
+        -s|--initial-size)
+            SIZE=$2
+            shift 2
+            ;;
+        -t|--volume-type)
+            VOLUMETYPE=$2
+            shift 2
+            ;;
+        -d|--initial-device)
+            DEVICE=$2
+            shift 2
+            ;;
+        -f|--file-system)
+            FILE_SYSTEM=$2
+            shift 2
+            ;;
+        -m|--mountpoint)
+            MOUNTPOINT=$2
+            shift 2
+            ;;
+        -h|--help)
+            echo "$USAGE"
+            exit
+            ;;
+        --) # end parsing
+            shift
+            break
+            ;;
+        -*|--*=)
+            error "unsupported argument $1"
+            ;;
+        *) # positional arguments
+            PARAMS="$PARAMS $1"
+            shift
+            ;;
+    esac
+done
+
+eval set -- "$PARAMS"
+
+# for backwards compatibility evaluate positional parameters like previous 2.0.x and 2.1.x releases
+# this will be removed in the future
+if [ ! -z "$PARAMS" ]; then
+  MOUNTPOINT=$1
+
+  if [ ! -z "$2" ]; then
+    DEVICE=$2
+  fi
+fi
+
 # Install executables
 # make executables available on standard PATH
 mkdir -p /usr/local/amazon-ebs-autoscale/{bin,shared}
-cp ${BASEDIR}/bin/{create-ebs-volume.py,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
+cp ${BASEDIR}/bin/{create-ebs-volume,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
 chmod +x /usr/local/amazon-ebs-autoscale/bin/*
 ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
 ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/bin/
@@ -65,8 +147,11 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 
 # install default config
-sed -e "s#/scratch#${MOUNTPOINT}#" ${BASEDIR}/config/ebs-autoscale.json > /etc/ebs-autoscale.json
-
+cat ${BASEDIR}/config/ebs-autoscale.json | \
+  sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
+  sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
+  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" \
+  > /etc/ebs-autoscale.json
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
@@ -77,19 +162,31 @@ elif ! [ -e $MOUNTPOINT ]; then
 fi
 
 # If a device is not given, or if the device is not valid
-# create a new 20GB volume
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume.py --size 20)
+  DEVICE=$(create-ebs-volume --size $SIZE --type $VOLUMETYPE)
 fi
 
 # create and mount the BTRFS filesystem
-mkfs.btrfs -f -d single $DEVICE
-mount $DEVICE $MOUNTPOINT
-
-# add entry to fstab
-# allows non-root users to mount/unmount the filesystem
-echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
-
+if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+  mkfs.btrfs -f -d single $DEVICE
+  mount $DEVICE $MOUNTPOINT
+  # add entry to fstab
+  # allows non-root users to mount/unmount the filesystem
+  echo -e "${DEVICE}\t${MOUNTPOINT}\tbtrfs\tdefaults\t0\t0" |  tee -a /etc/fstab
+elif [ "${FILE_SYSTEM}" = "lvm.ext4" ]; then
+  VG=$(get_config_value .lvm.volume_group)
+  LV=$(get_config_value .lvm.logical_volume)
+  pvcreate $DEVICE
+  vgcreate $VG $DEVICE
+  lvcreate $VG -n $LV -l 100%VG
+  mkfs.ext4 /dev/mapper/${VG}-${LV}
+  mount /dev/mapper/${VG}-${LV} $MOUNTPOINT
+  echo -e "/dev/mapper/${VG}-${LV}\t${MOUNTPOINT}\text4\tdefaults\t0\t0" |  tee -a /etc/fstab
+else
+  echo "Unknown file system type: ${FILE_SYSTEM}"
+  exit 1
+fi
+chmod 1777 ${MOUNTPOINT}
 
 ## Install service
 INIT_SYSTEM=$(detect_init_system 2>/dev/null)

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2018 Amazon.com, Inc. or its affiliates.
+# Copyright Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions are met:
@@ -32,8 +32,14 @@
 
 initialize
 
+MAX_EBS_VOLUME_SIZE=$(get_config_value .limits.max_ebs_volume_size)
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
+
+FILE_SYSTEM=$(get_config_value .filesystem)
+
+LVM_VG=$(get_config_value .lvm.volume_group)
+LVM_LV=$(get_config_value .lvm.logical_volume)
 
 MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
@@ -51,7 +57,40 @@ until [ -d "${MOUNTPOINT}" ]; do
 done
 
 get_num_devices() {
-  echo $(ls /dev/sd* | grep -v -E '[0-9]$' | wc -l)
+  # This tag is added to all devices attached by this ebs-autoscale in the create-ebs-volume script it's presence indicates
+  # a device that has been added by auto-expansion rather than an EBS volume attached for other reasons or at startup.
+  TAG=amazon-ebs-autoscale-creation-time
+
+  # determine the number of devices attached by ebs-autoscale on this instance. Volumes attached in other ways are
+  # excluded as they aren't relevant to autoscaling
+  local attached_volumes=""
+  local max_attempts=5
+
+  # By waiting until the attached_volumes value is >=0 we will retry with backoff hopefully avoiding request limits
+  # eventually getting a usable value. The >= 0 test is really a test that we got an integer response
+  for i in $(eval echo "{0..$max_attempts}") ; do
+      local attached_volumes_response=""
+
+      attached_volumes_response=$(
+        aws ec2 describe-volumes \
+            --region $AWS_REGION \
+            --filters Name=attachment.instance-id,Values=$INSTANCE_ID Name=tag-key,Values=$TAG
+       )
+
+      attached_volumes=$(echo "$attached_volumes_response" | jq '.Volumes | length')
+      if [ "$attached_volumes" -ge 0 ]; then
+          break
+      fi
+
+      if [ $i -eq $max_attempts ] ; then
+        logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes_response"
+        break
+      fi
+
+      sleep $(( 2 ** i ))
+  done
+
+  echo "$attached_volumes"
 }
 
 calc_threshold() {
@@ -77,18 +116,34 @@ calc_threshold() {
 calc_new_size() {
   # calculates the size to use for new ebs volumes to expand space
   # new volume sizes increase as the number of attached volumes increase
-  
+
   local num_devices=$(get_num_devices)
   local new_size=150
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
-    new_size=300
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ]; then
+      new_size=300
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
-    new_size=1000
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ]; then
+      new_size=1000
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   elif [ "$num_devices" -gt "10" ]; then
-    new_size=1500
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "1499" ]; then
+      new_size=1500
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   else
-    new_size=150
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "149" ]; then
+      new_size=150
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   fi
 
   echo ${new_size}
@@ -106,19 +161,28 @@ add_space () {
     local vol_size=$(calc_new_size)
     logthis "Extending logical volume ${MOUNTPOINT} by ${vol_size}GB"
 
-    DEVICE=$(python ${BASEDIR}/create-ebs-volume.py -s ${vol_size})
+    DEVICE=$(${BASEDIR}/create-ebs-volume --size ${vol_size} --max-attached-volumes ${MAX_EBS_VOLUME_COUNT})
 
     exit_status=$?
     if [ $exit_status -eq 0 ]; then
-      logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
-      btrfs device add ${DEVICE} ${MOUNTPOINT}
-      btrfs balance start -m ${MOUNTPOINT}
+      if [ "${FILE_SYSTEM}" = "btrfs" ]; then
+        logthis "Adding device ${DEVICE} to logical volume ${MOUNTPOINT}"
+        btrfs device add ${DEVICE} ${MOUNTPOINT}
+        btrfs balance start -m ${MOUNTPOINT}
+      else
+        logthis "Adding device ${DEVICE} to logical volume /dev/mapper/${LVM_VG}-${LVM_LV}"
+        vgextend ${LVM_VG} ${DEVICE}
+        lvresize -l 100%VG /dev/mapper/${LVM_VG}-${LVM_LV}
+        resize2fs /dev/mapper/${LVM_VG}-${LVM_LV}
+      fi
       logthis "Finished extending logical volume"
 
     else
       logthis "Error creating or attaching EBS volume"
     fi
 
+  else
+    logthis "Maximum volume size ($MAX_LOGICAL_VOLUME_SIZE) reached"
   fi
 }
 
@@ -146,9 +210,10 @@ while true; do
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
     logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
     add_space
+    LOG_COUNT=$LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
-    logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Aailable ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
+    logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Available ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
     LOG_COUNT=0
   fi
   THRESHOLD=$(calc_threshold)

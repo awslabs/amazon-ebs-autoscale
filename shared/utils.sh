@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2018 Amazon.com, Inc. or its affiliates.
+# Copyright Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions are met:
@@ -49,6 +49,11 @@ function get_config_value() {
     local filter=$1
 
     jq -r $filter $EBS_AUTOSCALE_CONFIG_FILE
+}
+
+function get_metadata() {
+    local key=$1
+    echo `curl -s http://169.254.169.254/latest/meta-data/$key`
 }
 
 function logthis() {

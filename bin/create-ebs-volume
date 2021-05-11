@@ -1,0 +1,344 @@
+#!/bin/bash
+# Copyright Amazon.com, Inc. or its affiliates.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are met:
+#
+#  1. Redistributions of source code must retain the above copyright notice,
+#  this list of conditions and the following disclaimer.
+#
+#  2. Redistributions in binary form must reproduce the above copyright
+#  notice, this list of conditions and the following disclaimer in the
+#  documentation and/or other materials provided with the distribution.
+#
+#  3. Neither the name of the copyright holder nor the names of its
+#  contributors may be used to endorse or promote products derived from
+#  this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+#  BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+#  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+#  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+#  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+
+. /usr/local/amazon-ebs-autoscale/shared/utils.sh
+initialize
+
+USAGE=$(cat <<EOF
+Create EBS volume
+
+    $0 [options] --size <volume_size_gb>
+
+Required
+
+    -s, --size          Size of the volume in GB.
+
+Options
+
+    -t, --type          Type of volume. (Default: gp2)
+
+    -i, --iops          IOPS for volume. Only valid if type=io1. (Default: 3000)
+
+    --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
+                        an encrypted volume
+    
+    --max-total-created-size SIZE_GB
+                        Maximum total size in GB of all volumes created by the instance.
+                        (Default: config.limits.max_logical_volume_size)
+                        
+    --max-attached-volumes N
+                        Maximum number of attached volumes.
+                        (Default: config.limits.max_ebs_volume_count)
+    
+    --max-created-volumes N
+                        Maximum number of volumes that can be created by the instance.
+                        (Default: MAX_ATTACHED_VOLUMES)
+EOF
+)
+
+if [ "$#" -lt 1 ]; then
+    echo "$USAGE"
+    exit 1
+fi
+
+function error() {
+    logthis "Error: $1"
+    echo "Error: $1" >&2
+    exit 1
+}
+
+TYPE=$(get_config_value .volume.type)
+IOPS=$(get_config_value .volume.iops)
+ENCRYPTED=$(get_config_value .volume.encrypted)
+MAX_TOTAL_EBS_SIZE=$(get_config_value .limits.max_logical_volume_size)
+MAX_ATTACHED_VOLUMES=$(get_config_value .limits.max_ebs_volume_count)
+MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
+
+# parse options
+PARAMS=""
+while (( "$#" )); do
+    case "$1" in
+        -s|--size)
+            SIZE=$2
+            shift 2
+            ;;
+        -t|--type)
+            TYPE=$2
+            shift 2
+            ;;
+        -i|--iops)
+            IOPS=$2
+            shift 2
+            ;;
+        --not-encrypted)
+            unset ENCRYPTED
+            shift
+            ;;
+        --max-attached-volumes)
+            MAX_ATTACHED_VOLUMES=$2
+            shift 2
+            ;;
+        --max-created-volumes)
+            MAX_CREATED_VOLUMES=$2
+            shift 2
+            ;;
+        --max-total-created-size)
+            MAX_TOTAL_EBS_SIZE=$2
+            shift 2
+            ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift
+            ;;
+        --) # end parsing
+            shift
+            break
+            ;;
+        -*|--*=)
+            error "unsupported argument $1"
+            ;;
+        *) # positional arguments
+            PARAMS="$PARAMS $1"
+            shift
+            ;;
+    esac
+done
+
+eval set -- "$PARAMS"
+
+if [[ $VEROBSE ]]; then
+    set -x
+fi
+
+if [[ ! "$SIZE" ]]; then
+    error "missing required argument --size"
+fi
+
+alphabet=( {a..z} )
+
+function get_next_logical_device() {
+    for letter in ${alphabet[@]}; do
+        # use /dev/xvdb* device names to avoid contention for /dev/sd* and /dev/xvda names
+        # only supported by HVM instances
+        if [ ! -b "/dev/xvdb${letter}" ]; then
+            echo "/dev/xvdb${letter}"
+            break
+        fi
+    done
+}
+
+function create_and_attach_volume() {
+    local instance_id=$(get_metadata instance-id)
+    local availability_zone=$(get_metadata placement/availability-zone)
+    local region=${availability_zone%?}
+
+    local instance_tags=""
+    # Render instance tags to match: --tag-specification
+    # Output Example:
+    # {Key=Name,Value=Jenkins},{Key=Owner,Value=DevOps}
+    instance_tags=$(
+      aws ec2 describe-tags \
+        --region $region \
+        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | tr : =
+      )
+
+    local max_attempts=10
+    local attached_volumes=""
+
+    for i in $(eval echo "{0..$max_attempts}") ; do
+        attached_volumes=$(
+          aws ec2 describe-volumes \
+            --region $region \
+            --filters "Name=attachment.instance-id,Values=$instance_id"
+        )
+
+        if [ $? -eq 0 ]; then
+             break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes"
+            break
+        fi
+        sleep $(( 2 ** i ))
+    done
+
+    local created_volumes=""
+    for i in $(eval echo "{0..$max_attempts}") ; do
+        created_volumes=$(
+            aws ec2 describe-volumes \
+                --region $region \
+                --filters "Name=tag:source-instance,Values=$instance_id"
+        )
+
+        if [ $? -eq 0 ]; then
+             break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not determine the number of created_volumes after $i attempts. Last response was: $created_volumes"
+            break
+        fi
+        sleep $(( 2 ** i ))
+    done
+
+    local total_created_size=""
+    for i in $(eval echo "{0..$max_attempts}") ; do
+        total_created_size=$(
+            aws ec2 describe-volumes \
+                --region $region \
+                --filters "Name=tag:source-instance,Values=$instance_id" \
+                --query 'sum(Volumes[].Size)' \
+                --output text
+        )
+
+        if [ $? -eq 0 ]; then
+             break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not determine the total_created_size after $i attempts. Last response was: $total_created_size"
+            break
+        fi
+        sleep $(( 2 ** i ))
+    done
+
+    # check how much EBS storage this instance has created
+    if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
+        error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
+    fi
+
+    # check how many volumes this instance has created
+    if [ "`echo $created_volumes | jq '.Volumes | length'`" -ge "$MAX_CREATED_VOLUMES" ]; then
+        error "maximum number of created volumes reached ($MAX_CREATED_VOLUMES)"
+    fi
+
+    # check how many volumes are currently attached
+    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -ge "$MAX_ATTACHED_VOLUMES" ]; then
+        error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
+    fi
+    
+    # check if there are available device names
+    local device=$(get_next_logical_device)
+    if [ -z "$device" ]; then
+        error "no device names available for volume"
+    fi
+    logthis "next available device: $device"
+
+    # create the volume
+    local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
+    local volume_opts="--size $SIZE --volume-type $TYPE"
+    if [ "$TYPE" == "io1" ]; then volume_opts="$volume_opts --iops $IOPS"; fi
+    if [ "$ENCRYPTED" == "1" ]; then volume_opts="$volume_opts --encrypted"; fi
+    local timestamp=$(date "+%F %T UTC%z")  # YYYY-mm-dd HH:MM:SS UTC+0000
+
+    local volume=""
+    for i in $(eval echo "{0..$max_attempts}") ; do
+      local volume=$(\
+          aws ec2 create-volume \
+              --region $region \
+              --availability-zone $availability_zone \
+              $volume_opts \
+              --tag-specification "ResourceType=volume,Tags=[$instance_tags,{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]" \
+          2> $tmpfile
+      )
+
+      if [ $? -eq 0 ]; then
+           break
+      elif [ $i -eq $max_attempts ]; then
+          logthis "Could not create a volume after $i attempts. Last response was: $volume"
+          break
+      fi
+      sleep $(( 2 ** i ))
+    done
+
+    local volume_id=`echo $volume | jq -r '.VolumeId'`
+
+    if [ -z "$volume_id" ]; then
+        logthis "$(cat $tmpfile)"  # log captured error
+        cat $tmpfile               # print captured error (e.g. when called during install)
+        rm $tmpfile
+
+        error "could not create volume"
+    fi
+    rm $tmpfile
+
+    logthis "created volume: $volume_id [ $volume_opts ]"
+
+    # In theory this shouldn't need to loop as aws ec2 wait will retry but I have seen it exceed request limits
+    for i in {1..3} ; do
+       if aws ec2 wait volume-available --region $region --volume-ids $volume_id; then
+         logthis "volume $volume_id available"
+         break
+       fi
+    done
+
+    # Need to assure that the created volume is successfully attached to be
+    # cost efficient.  If attachment fails, delete the volume.
+    set +e
+    logthis "attaching volume $volume_id"
+
+    sleep 1
+    aws ec2 attach-volume \
+        --region $region \
+        --device $device \
+        --instance-id $instance_id \
+        --volume-id $volume_id \
+    > /dev/null
+    
+    status="$?"
+    if [ ! "$status" -eq 0 ]; then
+        logthis "deleting volume $volume_id"
+        aws ec2 delete-volume \
+            --region $region \
+            --volume-id $volume_id \
+        > /dev/null
+        
+        error "could not attach volume to instance"
+    fi
+    set -e
+
+    logthis "waiting for volume $volume_id on filesystem"
+    while true; do
+        if [ -e "$device" ]; then
+            logthis "volume $volume_id on filesystem as $device"
+            break
+        fi
+        sleep 1
+    done
+
+    # set volume delete on termination
+    aws ec2 modify-instance-attribute \
+        --region $region \
+        --instance-id $instance_id \
+        --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
+    > /dev/null
+    logthis "volume $volume_id DeleteOnTermination ENABLED"
+
+    echo $device
+}
+
+create_and_attach_volume

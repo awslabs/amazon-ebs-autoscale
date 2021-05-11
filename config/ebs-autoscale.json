@@ -1,8 +1,19 @@
 {
-    "mountpoint": "/scratch",
+    "mountpoint": "%%MOUNTPOINT%%",
+    "filesystem": "%%FILESYSTEM%%",
+    "lvm": {
+      "volume_group": "autoscale_vg",
+      "logical_volume": "autoscale_lv"
+    },
+    "volume": {
+        "type": "%%VOLUMETYPE%%",
+        "iops": 3000,
+        "encrypted": 1
+    },
     "detection_interval": 1,
     "limits": {
-        "max_logical_volume_size": 16384,
+        "max_ebs_volume_size": 1500,
+        "max_logical_volume_size": 8000,
         "max_ebs_volume_count": 16
     },
     "logging": {
