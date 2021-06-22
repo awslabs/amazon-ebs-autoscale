@@ -216,7 +216,7 @@ while true; do
     add_space "$NUM_DEVICES"
 	NUM_DEVICES=$(expr $NUM_DEVICES + 1 )
     THRESHOLD=$(calc_threshold "$NUM_DEVICES")
-    LOG_COUNT=LOG_INTERVAL
+    LOG_COUNT=$LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
     logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Available ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
