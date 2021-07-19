@@ -288,37 +288,45 @@ function create_and_attach_volume() {
 
     logthis "created volume: $volume_id [ $volume_opts ]"
 
-    # In theory this shouldn't need to loop as aws ec2 wait will retry but I have seen it exceed request limits
-    for i in {1..3} ; do
-       if aws ec2 wait volume-available --region $region --volume-ids $volume_id; then
-         logthis "volume $volume_id available"
-         break
-       fi
-    done
+    # Check for volume availability until ready or $max_attempts
+    local VOLUME_STATE="none"
+    local VOLUME_STATE_RETRIES=0
+	while [ "$VOLUME_STATE" != "available" ] ; do 
+        if [[ $VOLUME_STATE_RETRIES -le $max_attempts ]]; then
+    		VOLUME_STATE=$(runAwsCommand ec2 describe-volumes \
+			--volume-id "$volume_id" \
+			--query Volumes[*].[State])
+        else
+            error "Volume is not available"
+        fi    
+	done
 
     # Need to assure that the created volume is successfully attached to be
     # cost efficient.  If attachment fails, delete the volume.
     set +e
     logthis "attaching volume $volume_id"
-
-    sleep 1
-    aws ec2 attach-volume \
-        --region $region \
-        --device $device \
-        --instance-id $instance_id \
-        --volume-id $volume_id \
-    > /dev/null
-    
-    status="$?"
-    if [ ! "$status" -eq 0 ]; then
-        logthis "deleting volume $volume_id"
-        aws ec2 delete-volume \
-            --region $region \
-            --volume-id $volume_id \
-        > /dev/null
-        
-        error "could not attach volume to instance"
-    fi
+    local VOLUME_ATTACHMENT_STATE="none"
+    local VOLUME_ATTACHMENT_RETRIES=0
+	VOLUME_ATTACHMENT_STATE=$(aws ec2 attach-volume \
+		--device "$device" \
+		--instance-id "$instance_id" \
+		--volume-id "$volume_id" \
+		--query State)
+	while [ "$VOLUME_ATTACHMENT_STATE" != "attached" ] ; do 
+        if [[ $VOLUME_ATTACHMENT_RETRIES -le $max_attempts ]]; then
+		    VOLUME_ATTACHMENT_STATE=$(aws ec2 describe-volumes \
+			    --volume-id "$volume_id" \
+			    --query Volumes[*].[Attachments[*].State])
+            VOLUME_ATTACHMENT_RETRIES=$((VOLUME_ATTACHMENT_RETRIES+1))
+        else
+            logthis "deleting volume $volume_id"
+            aws ec2 delete-volume \
+                --region $region \
+                --volume-id $volume_id \
+            > /dev/null
+            error "could not attach volume to instance"
+        fi 
+	done
     set -e
 
     logthis "waiting for volume $volume_id on filesystem"
