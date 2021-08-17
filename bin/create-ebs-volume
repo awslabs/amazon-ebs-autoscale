@@ -187,7 +187,7 @@ function create_and_attach_volume() {
             logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes"
             break
         fi
-        sleep $(( 2 ** i ))
+        sleep $(( 2 ** i + $RANDOM % 3))
     done
 
     local created_volumes=""
@@ -204,7 +204,7 @@ function create_and_attach_volume() {
             logthis "Could not determine the number of created_volumes after $i attempts. Last response was: $created_volumes"
             break
         fi
-        sleep $(( 2 ** i ))
+        sleep $(( 2 ** i + $RANDOM % 3))
     done
 
     local total_created_size=""
@@ -223,7 +223,7 @@ function create_and_attach_volume() {
             logthis "Could not determine the total_created_size after $i attempts. Last response was: $total_created_size"
             break
         fi
-        sleep $(( 2 ** i ))
+        sleep $(( 2 ** i + $RANDOM % 3))
     done
 
     # check how much EBS storage this instance has created
@@ -272,7 +272,7 @@ function create_and_attach_volume() {
           logthis "Could not create a volume after $i attempts. Last response was: $volume"
           break
       fi
-      sleep $(( 2 ** i ))
+      sleep $(( 2 ** i + $RANDOM % 3))
     done
 
     local volume_id=`echo $volume | jq -r '.VolumeId'`
