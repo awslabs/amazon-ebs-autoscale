@@ -87,7 +87,7 @@ get_num_devices() {
         break
       fi
 
-      sleep $(( 2 ** i ))
+      sleep $(( 2 ** i + $RANDOM %3 ))
   done
 
   echo "$attached_volumes"
