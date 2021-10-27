@@ -98,6 +98,8 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
 }
 ```
 
+Please note that if you enable EBS encryption and use a Customer Managed Key with AWS Key Management Service, then you should also ensure that you provide [appropriate IAM permissions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#ebs-encryption-permissions) to use that key.
+
 ## License Summary
 
 This sample code is made available under the MIT license. 
