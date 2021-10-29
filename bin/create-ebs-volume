@@ -168,7 +168,7 @@ function create_and_attach_volume() {
     instance_tags=$(
       aws ec2 describe-tags \
         --region $region \
-        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | tr : =
+        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws.*}//g ; s/,,/,/g ; s/,$//g ; s/^,//g'
       )
 
     local max_attempts=10
