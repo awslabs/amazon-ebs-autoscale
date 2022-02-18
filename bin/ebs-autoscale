@@ -64,7 +64,7 @@ get_num_devices() {
   # determine the number of devices attached by ebs-autoscale on this instance. Volumes attached in other ways are
   # excluded as they aren't relevant to autoscaling
   local attached_volumes=""
-  local max_attempts=5
+  local max_attempts=${AWS_MAX_ATTEMPTS:-10}
 
   # By waiting until the attached_volumes value is >=0 we will retry with backoff hopefully avoiding request limits
   # eventually getting a usable value. The >= 0 test is really a test that we got an integer response
