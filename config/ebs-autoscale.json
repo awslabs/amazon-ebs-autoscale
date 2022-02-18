@@ -10,7 +10,7 @@
         "iops": 3000,
         "encrypted": 1
     },
-    "detection_interval": 2,
+    "detection_interval": 5,
     "limits": {
         "max_ebs_volume_size": 1500,
         "max_logical_volume_size": 8000,
