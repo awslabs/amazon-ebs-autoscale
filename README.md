@@ -86,6 +86,7 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
                 "ec2:AttachVolume",
                 "ec2:DescribeVolumeStatus",
                 "ec2:DescribeVolumes",
+                "ec2:DescribeTags",
                 "ec2:ModifyInstanceAttribute",
                 "ec2:DescribeVolumeAttribute",
                 "ec2:CreateVolume",
