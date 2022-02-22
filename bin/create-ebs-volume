@@ -257,12 +257,20 @@ function create_and_attach_volume() {
 
     local volume=""
     for i in $(eval echo "{0..$max_attempts}") ; do
+      # If only tags on resource are prefixed with `aws:` they will all be deleted and cause a parameter validation on
+      # TagSpecifications[0].Tags[0] error to be thrown since the payload is determined to be a string, not dictionary.
+      if [ ! -z $instance_tags ]; then
+        local tag_specification="ResourceType=volume,Tags=[$instance_tags,{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
+      else:
+        local tag_specification="ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
+      fi
+        
       local volume=$(\
           aws ec2 create-volume \
               --region $region \
               --availability-zone $availability_zone \
               $volume_opts \
-              --tag-specification "ResourceType=volume,Tags=[$instance_tags,{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]" \
+              --tag-specification "$tag_specification" \
           2> $tmpfile
       )
 
