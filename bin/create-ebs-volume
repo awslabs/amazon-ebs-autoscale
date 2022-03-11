@@ -261,7 +261,7 @@ function create_and_attach_volume() {
       # TagSpecifications[0].Tags[0] error to be thrown since the payload is determined to be a string, not dictionary.
       if [ ! -z $instance_tags ]; then
         local tag_specification="ResourceType=volume,Tags=[$instance_tags,{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
-      else:
+      else
         local tag_specification="ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
       fi
         
