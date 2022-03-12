@@ -268,6 +268,7 @@ function create_and_attach_volume() {
       # Note: Shellcheck says the $vars in this command should be double quoted to prevent globbing and word-splitting,
       # but this ends up making the '--encrypted' argument to fail during the execution of the install script. Conversely, NOT putting double-quotes
       # around $tag_specification causes a parsing error due to the space in the $timestamp value (added to $tag_specification above).
+
       local volume=$(\
           aws ec2 create-volume \
               --region $region \
