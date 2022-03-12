@@ -257,14 +257,18 @@ function create_and_attach_volume() {
 
     local volume=""
     for i in $(eval echo "{0..$max_attempts}") ; do
-      # If only tags on resource are prefixed with `aws:` they will all be deleted and cause a parameter validation on
-      # TagSpecifications[0].Tags[0] error to be thrown since the payload is determined to be a string, not dictionary.
-      if [ ! -z $instance_tags ]; then
-        local tag_specification="ResourceType=volume,Tags=[$instance_tags,{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
-      else
-        local tag_specification="ResourceType=volume,Tags=[{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
-      fi
-        
+
+      # The $instance_tags variable could be empty and will cause a TagSpecifications[0].Tags[0] error if
+      # it is passed as an empty value because it must be comma-separated from the other key-value pairs.
+      # Use a Shell Parameter Expansion to determine if the variable contains a value or not. If it has a value, 
+      # append a comma at the end so the aws cli syntax is compliant when it is subbed into the tag_specification variable.
+      local instance_tags=${instance_tags:+${instance_tags},}
+      local tag_specification="ResourceType=volume,Tags=[$instance_tags{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
+
+      # Note: Shellcheck says the $vars in this command should be double quoted to prevent globbing and word-splitting,
+      # but this ends up making the '--encrypted' argument to fail during the execution of the install script. Conversely, NOT putting double-quotes
+      # around $tag_specification causes a parsing error due to the space in the $timestamp value (added to $tag_specification above).
+
       local volume=$(\
           aws ec2 create-volume \
               --region $region \
