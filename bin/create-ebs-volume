@@ -260,7 +260,7 @@ function create_and_attach_volume() {
     # create the volume
     local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
     local volume_opts="--size $SIZE --volume-type $TYPE"
-    local IOPS_TYPES = ['io1','io2','gp3']
+    local IOPS_TYPES=( io1 io2 gp3 )
     if [[ " ${IOPS_TYPES[*]} " =~ " ${TYPE} " ]]; then volume_opts="$volume_opts --iops $IOPS"; fi
     if [ "$TYPE" == "gp3" ]; then volume_opts="$volume_opts --throughput $THROUGHPUT"; fi
     if [ "$ENCRYPTED" == "1" ]; then volume_opts="$volume_opts --encrypted"; fi

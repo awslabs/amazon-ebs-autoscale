@@ -205,10 +205,10 @@ cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
   sed -e "s#%%VOLUMEIOPS%%#${VOLUMEIOPS}#" | \
   sed -e "s#%%VOLUMETHOUGHPUT%%#${VOLUMETHOUGHPUT}#" | \
-  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" \
-  sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" \
-  sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" \
-  sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" \
+  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" | \
+  sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" | \
   sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" \
   > /etc/ebs-autoscale.json
 
@@ -222,7 +222,7 @@ fi
 
 # If a device is not given, or if the device is not valid
 if [ -z "${DEVICE}" ] || [ ! -b "${DEVICE}" ]; then
-  DEVICE=$(create-ebs-volume --size $SIZE)
+  DEVICE=$(create-ebs-volume --size $SIZE --type $VOLUMETYPE)
 fi
 
 # create and mount the BTRFS filesystem
