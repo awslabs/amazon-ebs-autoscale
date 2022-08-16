@@ -1,9 +1,9 @@
 [Unit]
 Description=Amazon EBS Autoscale
-After=network-online.target
+After=docker.service
 
 [Service]
-ExecStart=/usr/local/bin/ebs-autoscale
+ExecStart=/bin/bash -c 'PATH=/opt/local/bin:$PATH /opt/local/bin/ebs-autoscale'
 Restart=always
 
 [Install]

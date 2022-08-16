@@ -169,7 +169,7 @@ function create_and_attach_volume() {
       aws ec2 describe-tags \
         --region $region \
         --filters "Name=resource-id,Values=$instance_id" | \
-            jq -c '"'"'[.Tags[] | select(.Value | length > 0) | {Key,Value}]'"'"' | \
+            jq -c '[.Tags[] | select(.Value | length > 0) | {Key,Value}]' | \
             tr -d '[]"' | \
             sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws:[^}]*}//g ; s/,\{2,\}/,/g ; s/,$//g ; s/^,//g'
       )
