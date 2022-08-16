@@ -30,7 +30,7 @@
 
 set -e
 
-. /usr/local/amazon-ebs-autoscale/shared/utils.sh
+. /opt/local/amazon-ebs-autoscale-shared-utils.sh
 initialize
 
 USAGE=$(cat <<EOF
@@ -168,79 +168,31 @@ function create_and_attach_volume() {
     instance_tags=$(
       aws ec2 describe-tags \
         --region $region \
-        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws:[^}]*}//g ; s/,\{2,\}/,/g ; s/,$//g ; s/^,//g'
+        --filters "Name=resource-id,Values=$instance_id" | \
+            jq -c '"'"'[.Tags[] | select(.Value | length > 0) | {Key,Value}]'"'"' | \
+            tr -d '[]"' | \
+            sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws:[^}]*}//g ; s/,\{2,\}/,/g ; s/,$//g ; s/^,//g'
       )
 
     local max_attempts=10
-    local attached_volumes=""
-
-    for i in $(eval echo "{0..$max_attempts}") ; do
-        attached_volumes=$(
-          aws ec2 describe-volumes \
-            --region $region \
-            --filters "Name=attachment.instance-id,Values=$instance_id"
-        )
-
-        if [ $? -eq 0 ]; then
-             break
-        elif [ $i -eq $max_attempts ]; then
-            logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes"
-            break
-        fi
-        sleep $(( 2 ** i + $RANDOM % 3))
-    done
-
-    local created_volumes=""
-    for i in $(eval echo "{0..$max_attempts}") ; do
-        created_volumes=$(
-            aws ec2 describe-volumes \
-                --region $region \
-                --filters "Name=tag:source-instance,Values=$instance_id"
-        )
-
-        if [ $? -eq 0 ]; then
-             break
-        elif [ $i -eq $max_attempts ]; then
-            logthis "Could not determine the number of created_volumes after $i attempts. Last response was: $created_volumes"
-            break
-        fi
-        sleep $(( 2 ** i + $RANDOM % 3))
-    done
-
-    local total_created_size=""
-    for i in $(eval echo "{0..$max_attempts}") ; do
-        total_created_size=$(
-            aws ec2 describe-volumes \
-                --region $region \
-                --filters "Name=tag:source-instance,Values=$instance_id" \
-                --query 'sum(Volumes[].Size)' \
-                --output text
-        )
-
-        if [ $? -eq 0 ]; then
-             break
-        elif [ $i -eq $max_attempts ]; then
-            logthis "Could not determine the total_created_size after $i attempts. Last response was: $total_created_size"
-            break
-        fi
-        sleep $(( 2 ** i + $RANDOM % 3))
-    done
-
-    # check how much EBS storage this instance has created
-    if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
-        error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
+    local attached_volumes=$(cat /var/run/ebs_autoscale_attached_volumes || echo 0)
+    # check how many volumes are currently attached
+    if [ "${attached_volumes}" -ge "$MAX_ATTACHED_VOLUMES" ]; then
+        error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
     fi
 
+    local created_volumes=$(cat /var/run/ebs_autoscale_created_volumes || echo 0)
     # check how many volumes this instance has created
-    if [ "`echo $created_volumes | jq '.Volumes | length'`" -ge "$MAX_CREATED_VOLUMES" ]; then
+    if [ "${created_volumes}" -ge "$MAX_CREATED_VOLUMES" ]; then
         error "maximum number of created volumes reached ($MAX_CREATED_VOLUMES)"
     fi
 
-    # check how many volumes are currently attached
-    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -ge "$MAX_ATTACHED_VOLUMES" ]; then
-        error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
+    local created_size=$(cat /var/run/ebs_autoscale_created_size || echo 0)
+    # check how much EBS storage this instance has created
+    if [ "$created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
+        error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
     fi
-    
+
     # check if there are available device names
     local device=$(get_next_logical_device)
     if [ -z "$device" ]; then
@@ -332,6 +284,10 @@ function create_and_attach_volume() {
         error "could not attach volume to instance"
     fi
     set -e
+
+    echo "$(( attached_volumes + 1 ))" > /var/run/ebs_autoscale_attached_volumes
+    echo "$(( created_volumes + 1 ))" > /var/run/ebs_autoscale_created_volumes
+    echo "$(( created_size + SIZE ))" > /var/run/ebs_autoscale_created_size
 
     logthis "waiting for volume $volume_id on filesystem"
     while true; do
