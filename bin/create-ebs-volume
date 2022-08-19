@@ -283,6 +283,15 @@ function create_and_attach_volume() {
         
         error "could not attach volume to instance"
     fi
+
+    # set volume delete on termination
+    aws ec2 modify-instance-attribute \
+        --region $region \
+        --instance-id $instance_id \
+        --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
+    > /dev/null
+    logthis "volume $volume_id DeleteOnTermination ENABLED"
+
     set -e
 
     echo "$(( attached_volumes + 1 ))" > /var/run/ebs_autoscale_attached_volumes
@@ -297,14 +306,6 @@ function create_and_attach_volume() {
         fi
         sleep 1
     done
-
-    # set volume delete on termination
-    aws ec2 modify-instance-attribute \
-        --region $region \
-        --instance-id $instance_id \
-        --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
-    > /dev/null
-    logthis "volume $volume_id DeleteOnTermination ENABLED"
 
     echo $device
 }
