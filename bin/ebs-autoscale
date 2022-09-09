@@ -124,7 +124,7 @@ calc_new_size() {
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ] && [ "$MIN_EBS_VOLUME_SIZE" -le "299" ]; then
       new_size=300
-    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "299" ]
+    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "299" ]; then
       new_size=$MIN_EBS_VOLUME_SIZE
     else
       new_size=$MAX_EBS_VOLUME_SIZE
@@ -132,7 +132,7 @@ calc_new_size() {
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ] && [ "$MIN_EBS_VOLUME_SIZE" -le "999" ]; then
       new_size=1000
-    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "999" ]
+    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "999" ]; then
       new_size=$MIN_EBS_VOLUME_SIZE
     else
       new_size=$MAX_EBS_VOLUME_SIZE
