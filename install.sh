@@ -77,6 +77,9 @@ Options
     --max-attached-volumes N
                         Maximum number of attached volumes. (Default: 16)
 
+    --initial-utilization-threshold N
+                        Initial disk utilization treshold for scale-up. (Default: 50)
+
     -s, --initial-size  SIZE_GB
                         Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
@@ -94,6 +97,7 @@ MIN_EBS_VOLUME_SIZE=150
 MAX_EBS_VOLUME_SIZE=1500
 MAX_LOGICAL_VOLUME_SIZE=8000
 MAX_ATTACHED_VOLUMES=16
+INITIAL_UTILIZATION_THRESHOLD=50
 
 DEVICE=""
 FILE_SYSTEM=btrfs
@@ -138,6 +142,10 @@ while (( "$#" )); do
             ;;
         --max-attached-volumes)
             MAX_ATTACHED_VOLUMES=$2
+            shift 2
+            ;;
+        --initial-utilization-threshold)
+            INITIAL_UTILIZATION_THRESHOLD=$2
             shift 2
             ;;
         -d|--initial-device)
@@ -209,7 +217,8 @@ cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" | \
   sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" | \
   sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" | \
-  sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" \
+  sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" | \
+  sed -e "s#%%INITIALUTILIZATIONTHRESHOLD%%#${INITIAL_UTILIZATION_THRESHOLD}#" \
   > /etc/ebs-autoscale.json
 
 ## Create filesystem

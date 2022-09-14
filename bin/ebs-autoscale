@@ -36,6 +36,7 @@ MIN_EBS_VOLUME_SIZE=$(get_config_value .limits.min_ebs_volume_size)
 MAX_EBS_VOLUME_SIZE=$(get_config_value .limits.max_ebs_volume_size)
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
+INITIAL_UTILIZATION_THRESHOLD=$(get_config_value .limits.initial_utilization_threshold)
 
 FILE_SYSTEM=$(get_config_value .filesystem)
 
@@ -99,7 +100,7 @@ calc_threshold() {
   # as more ebs volumes are added, the threshold level increases
 
   local num_devices=$1
-  local threshold=50
+  local threshold=${INITIAL_UTILIZATION_THRESHOLD}
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
     threshold=80
@@ -108,7 +109,7 @@ calc_threshold() {
   elif [ "$num_devices" -gt "10" ]; then
     threshold=90
   else
-    threshold=50
+    threshold=${INITIAL_UTILIZATION_THRESHOLD}
   fi
 
   echo ${threshold}
