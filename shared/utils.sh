@@ -39,7 +39,7 @@ function get_metadata() {
 function initialize() {
     export AWS_AZ=$(get_metadata placement/availability-zone)
     export AWS_REGION=$(echo ${AWS_AZ} | sed -e 's/[a-z]$//')
-    export INSTANCE_ID=$(get_metadata placement/availability-zone/instance-id)
+    export INSTANCE_ID=$(get_metadata instance-id)
     export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 }
 
