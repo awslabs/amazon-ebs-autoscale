@@ -56,7 +56,31 @@ Options
     -t, --volume-type   VOLUMETYPE
                         Volume type (default: gp3)
 
-    -s, --initial-size  SIZE
+    --volume-iops       VOLUMEIOPS
+                        Volume IOPS for gp3, io1, io2 (default: 3000)
+
+    --volume-throughput VOLUMETHOUGHPUT
+                        Volume throughput for gp3 (default: 125)
+
+    --min-ebs-volume-size SIZE_GB
+                        Mimimum size in GB of new volumes created by the instance.
+                        (Default: 150)
+
+    --max-ebs-volume-size SIZE_GB
+                        Maximum size in GB of new volumes created by the instance.
+                        (Default: 1500)
+            
+    --max-total-created-size SIZE_GB
+                        Maximum total size in GB of all volumes created by the instance.
+                        (Default: 8000)
+                        
+    --max-attached-volumes N
+                        Maximum number of attached volumes. (Default: 16)
+
+    --initial-utilization-threshold N
+                        Initial disk utilization treshold for scale-up. (Default: 50)
+
+    -s, --initial-size  SIZE_GB
                         Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
     
@@ -64,8 +88,17 @@ EOF
 )
 
 MOUNTPOINT=/scratch
+# defaults to set into ebs-autoscale.json
 SIZE=200
 VOLUMETYPE=gp3
+VOLUMEIOPS=3000
+VOLUMETHOUGHPUT=125
+MIN_EBS_VOLUME_SIZE=150
+MAX_EBS_VOLUME_SIZE=1500
+MAX_LOGICAL_VOLUME_SIZE=8000
+MAX_ATTACHED_VOLUMES=16
+INITIAL_UTILIZATION_THRESHOLD=50
+
 DEVICE=""
 FILE_SYSTEM=btrfs
 BASEDIR=$(dirname $0)
@@ -85,6 +118,34 @@ while (( "$#" )); do
             ;;
         -t|--volume-type)
             VOLUMETYPE=$2
+            shift 2
+            ;;
+        --volume-iops)
+            VOLUMEIOPS=$2
+            shift 2
+            ;;
+        --volume-throughput)
+            VOLUMETHOUGHPUT=$2
+            shift 2
+            ;;
+        --min-ebs-volume-size)
+            MIN_EBS_VOLUME_SIZE=$2
+            shift 2
+            ;;
+        --max-ebs-volume-size)
+            MAX_EBS_VOLUME_SIZE=$2
+            shift 2
+            ;;
+        --max-total-created-size)
+            MAX_LOGICAL_VOLUME_SIZE=$2
+            shift 2
+            ;;
+        --max-attached-volumes)
+            MAX_ATTACHED_VOLUMES=$2
+            shift 2
+            ;;
+        --initial-utilization-threshold)
+            INITIAL_UTILIZATION_THRESHOLD=$2
             shift 2
             ;;
         -d|--initial-device)
@@ -150,7 +211,14 @@ cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
 cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
   sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
-  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" \
+  sed -e "s#%%VOLUMEIOPS%%#${VOLUMEIOPS}#" | \
+  sed -e "s#%%VOLUMETHOUGHPUT%%#${VOLUMETHOUGHPUT}#" | \
+  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" | \
+  sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" | \
+  sed -e "s#%%INITIALUTILIZATIONTHRESHOLD%%#${INITIAL_UTILIZATION_THRESHOLD}#" \
   > /etc/ebs-autoscale.json
 
 ## Create filesystem

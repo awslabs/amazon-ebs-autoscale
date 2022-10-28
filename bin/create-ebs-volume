@@ -44,13 +44,17 @@ Required
 
 Options
 
-    -t, --type          Type of volume. (Default: gp2)
+    -t, --type          Type of volume. (Default: config.volume.type)
 
-    -i, --iops          IOPS for volume. Only valid if type=io1. (Default: 3000)
+    -i, --iops          N 
+                        IOPS for volume. Only valid if type=io1, io2, gp3. (Default: config.volume.iops)
+
+    --throughput        N 
+                        The throughput for a volume, with a maximum of 1,000 MiB/s. (Default: config.volume.throughput)
 
     --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
                         an encrypted volume
-    
+
     --max-total-created-size SIZE_GB
                         Maximum total size in GB of all volumes created by the instance.
                         (Default: config.limits.max_logical_volume_size)
@@ -78,8 +82,9 @@ function error() {
 
 TYPE=$(get_config_value .volume.type)
 IOPS=$(get_config_value .volume.iops)
+THROUGHPUT=$(get_config_value .volume.throughput)
 ENCRYPTED=$(get_config_value .volume.encrypted)
-MAX_TOTAL_EBS_SIZE=$(get_config_value .limits.max_logical_volume_size)
+MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_ATTACHED_VOLUMES=$(get_config_value .limits.max_ebs_volume_count)
 MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
 
@@ -99,9 +104,17 @@ while (( "$#" )); do
             IOPS=$2
             shift 2
             ;;
+        --throughput)
+            THROUGHPUT=$2
+            shift 2
+            ;;
         --not-encrypted)
             unset ENCRYPTED
             shift
+            ;;
+        --max-total-created-size)
+            MAX_LOGICAL_VOLUME_SIZE=$2
+            shift 2
             ;;
         --max-attached-volumes)
             MAX_ATTACHED_VOLUMES=$2
@@ -109,10 +122,6 @@ while (( "$#" )); do
             ;;
         --max-created-volumes)
             MAX_CREATED_VOLUMES=$2
-            shift 2
-            ;;
-        --max-total-created-size)
-            MAX_TOTAL_EBS_SIZE=$2
             shift 2
             ;;
         -v|--verbose)
@@ -227,8 +236,8 @@ function create_and_attach_volume() {
     done
 
     # check how much EBS storage this instance has created
-    if [ "$total_created_size" -ge "$MAX_TOTAL_EBS_SIZE" ]; then
-        error "maximum total ebs volume size reached ($MAX_TOTAL_EBS_SIZE)"
+    if [ "$total_created_size" -ge "$MAX_LOGICAL_VOLUME_SIZE" ]; then
+        error "maximum total ebs volume size reached ($MAX_LOGICAL_VOLUME_SIZE)"
     fi
 
     # check how many volumes this instance has created
@@ -251,7 +260,9 @@ function create_and_attach_volume() {
     # create the volume
     local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
     local volume_opts="--size $SIZE --volume-type $TYPE"
-    if [ "$TYPE" == "io1" ]; then volume_opts="$volume_opts --iops $IOPS"; fi
+    local IOPS_TYPES=( io1 io2 gp3 )
+    if [[ " ${IOPS_TYPES[*]} " =~ " ${TYPE} " ]]; then volume_opts="$volume_opts --iops $IOPS"; fi
+    if [ "$TYPE" == "gp3" ]; then volume_opts="$volume_opts --throughput $THROUGHPUT"; fi
     if [ "$ENCRYPTED" == "1" ]; then volume_opts="$volume_opts --encrypted"; fi
     local timestamp=$(date "+%F %T UTC%z")  # YYYY-mm-dd HH:MM:SS UTC+0000
 
