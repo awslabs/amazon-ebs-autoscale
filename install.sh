@@ -59,6 +59,9 @@ Options
     -s, --initial-size  SIZE
                         Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
+
+    -i, --imdsv2        
+                        Enable imdsv2 for instance metadata API requests.
     
 EOF
 )
@@ -98,6 +101,10 @@ while (( "$#" )); do
         -m|--mountpoint)
             MOUNTPOINT=$2
             shift 2
+            ;;
+        -i|--imdsv2)
+            IMDSV2="true"
+            shift 1
             ;;
         -h|--help)
             echo "$USAGE"

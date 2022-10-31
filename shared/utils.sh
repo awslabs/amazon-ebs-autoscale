@@ -30,10 +30,14 @@
 
 function get_metadata() {
     local key=$1
-    local metdata_ip='169.254.169.254'
-    local token=$(curl -s -X PUT "http://$metdata_ip/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+    local metadata_ip='169.254.169.254'
+
+    if [ ! -z "$IMDSV2" ]; then
+        local token=$(curl -s -X PUT "http://$metadata_ip/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+        local token_wrapper=`-H "X-aws-ec2-metadata-token: $token"`
+    fi
     
-    echo `curl -s -H "X-aws-ec2-metadata-token: $token" http://$metdata_ip/latest/meta-data/$key`
+    echo `curl -s $token_wrapper http://$metadata_ip/latest/meta-data/$key`
 }
 
 function initialize() {
