@@ -59,6 +59,9 @@ Options
     -s, --initial-size  SIZE
                         Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
+
+    -i, --imdsv2        
+                        Enable imdsv2 for instance metadata API requests.
     
 EOF
 )
@@ -72,8 +75,6 @@ BASEDIR=$(dirname $0)
 
 
 . ${BASEDIR}/shared/utils.sh
-
-initialize
 
 # parse options
 PARAMS=""
@@ -99,6 +100,10 @@ while (( "$#" )); do
             MOUNTPOINT=$2
             shift 2
             ;;
+        -i|--imdsv2)
+            IMDSV2="true"
+            shift 1
+            ;;
         -h|--help)
             echo "$USAGE"
             exit
@@ -118,6 +123,8 @@ while (( "$#" )); do
 done
 
 eval set -- "$PARAMS"
+
+initialize
 
 # for backwards compatibility evaluate positional parameters like previous 2.0.x and 2.1.x releases
 # this will be removed in the future
