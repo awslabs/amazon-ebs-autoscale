@@ -44,7 +44,7 @@ that installs required packages and runs the initialization script. By default t
 ```text
 Install Amazon EBS Autoscale
 
-    ./install.sh [options] [[-m] <mount-point>]
+    install.sh [options] [[-m] <mount-point>]
 
 Options
 
