@@ -62,20 +62,16 @@ Options
 
     -m, --mountpoint    MOUNTPOINT
                         Mount point for autoscale volume (default: /scratch)
-
-    -s, --initial-size  SIZE
-                        Initial size of the volume in GB. (Default: 200)
-                        Only used if --initial-device is NOT specified.
-    
+                        
     -t, --volume-type   VOLUMETYPE
-                        EBS volume type to use. (Default: gp3)
+                        Volume type (default: gp3)
 
     --volume-iops       VOLUMEIOPS
                         Volume IOPS for gp3, io1, io2 (default: 3000)
 
     --volume-throughput VOLUMETHOUGHPUT
                         Volume throughput for gp3 (default: 125)
-    
+
     --min-ebs-volume-size SIZE_GB
                         Mimimum size in GB of new volumes created by the instance.
                         (Default: 150)
@@ -91,6 +87,15 @@ Options
     --max-attached-volumes N
                         Maximum number of attached volumes. (Default: 16)
 
+    --initial-utilization-threshold N
+                        Initial disk utilization treshold for scale-up. (Default: 50)
+
+    -s, --initial-size  SIZE_GB
+                        Initial size of the volume in GB. (Default: 200)
+                        Only used if --initial-device is NOT specified.
+
+    -i, --imdsv2        
+                        Enable imdsv2 for instance metadata API requests.
 ```
 
 ## A note on the IAM Instance Profile
