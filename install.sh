@@ -185,6 +185,21 @@ done
 
 eval set -- "$PARAMS"
 
+# install default config
+cat ${BASEDIR}/config/ebs-autoscale.json | \
+  sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
+  sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
+  sed -e "s#%%VOLUMEIOPS%%#${VOLUMEIOPS}#" | \
+  sed -e "s#%%VOLUMETHOUGHPUT%%#${VOLUMETHOUGHPUT}#" | \
+  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" | \
+  sed -e "s#%%IMDSV2%%#${IMDSV2}#" | \
+  sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" | \
+  sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" | \
+  sed -e "s#%%INITIALUTILIZATIONTHRESHOLD%%#${INITIAL_UTILIZATION_THRESHOLD}#" \
+  > /etc/ebs-autoscale.json
+
 initialize
 
 # for backwards compatibility evaluate positional parameters like previous 2.0.x and 2.1.x releases
@@ -213,20 +228,6 @@ cp ${BASEDIR}/shared/utils.sh /usr/local/amazon-ebs-autoscale/shared
 ## Install configs
 # install the logrotate config
 cp ${BASEDIR}/config/ebs-autoscale.logrotate /etc/logrotate.d/ebs-autoscale
-
-# install default config
-cat ${BASEDIR}/config/ebs-autoscale.json | \
-  sed -e "s#%%MOUNTPOINT%%#${MOUNTPOINT}#" | \
-  sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
-  sed -e "s#%%VOLUMEIOPS%%#${VOLUMEIOPS}#" | \
-  sed -e "s#%%VOLUMETHOUGHPUT%%#${VOLUMETHOUGHPUT}#" | \
-  sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" | \
-  sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" | \
-  sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" | \
-  sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" | \
-  sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" | \
-  sed -e "s#%%INITIALUTILIZATIONTHRESHOLD%%#${INITIAL_UTILIZATION_THRESHOLD}#" \
-  > /etc/ebs-autoscale.json
 
 ## Create filesystem
 if [ -e $MOUNTPOINT ] && ! [ -d $MOUNTPOINT ]; then
