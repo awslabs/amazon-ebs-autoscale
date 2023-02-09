@@ -170,14 +170,11 @@ function create_and_attach_volume() {
     local availability_zone=$(get_metadata placement/availability-zone)
     local region=${availability_zone%?}
 
-    local instance_tags=""
-    # Render instance tags to match: --tag-specification
-    # Output Example:
-    # {Key=Name,Value=Jenkins},{Key=Owner,Value=DevOps}
-    instance_tags=$(
+    # Find all non aws: instance tags
+    local instance_tags=$(
       aws ec2 describe-tags \
         --region $region \
-        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws:[^}]*}//g ; s/,\{2,\}/,/g ; s/,$//g ; s/^,//g'
+        --filters "Name=resource-id,Values=$instance_id" | jq -rc '.Tags | map({Key,Value} | select(.Key | test("^aws:") | not))'
       )
 
     local max_attempts=10
@@ -269,12 +266,8 @@ function create_and_attach_volume() {
     local volume=""
     for i in $(eval echo "{0..$max_attempts}") ; do
 
-      # The $instance_tags variable could be empty and will cause a TagSpecifications[0].Tags[0] error if
-      # it is passed as an empty value because it must be comma-separated from the other key-value pairs.
-      # Use a Shell Parameter Expansion to determine if the variable contains a value or not. If it has a value, 
-      # append a comma at the end so the aws cli syntax is compliant when it is subbed into the tag_specification variable.
-      local instance_tags=${instance_tags:+${instance_tags},}
-      local tag_specification="ResourceType=volume,Tags=[$instance_tags{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
+      local ebs_autoscale_tags='[{"Key":"source-instance","Value":"'$instance_id'"},{"Key":"amazon-ebs-autoscale-creation-time","Value":"'$timestamp'"}]'
+      local tag_specifications='[{"ResourceType":"volume","Tags":'$(jq -sc 'add' <(echo "$ebs_autoscale_tags") <(echo "$instance_tags"))'}]'
 
       # Note: Shellcheck says the $vars in this command should be double quoted to prevent globbing and word-splitting,
       # but this ends up making the '--encrypted' argument to fail during the execution of the install script. Conversely, NOT putting double-quotes
@@ -285,7 +278,7 @@ function create_and_attach_volume() {
               --region $region \
               --availability-zone $availability_zone \
               $volume_opts \
-              --tag-specification "$tag_specification" \
+              --tag-specifications "$tag_specifications" \
           2> $tmpfile
       )
 
