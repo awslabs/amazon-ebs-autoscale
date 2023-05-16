@@ -34,10 +34,9 @@ function get_metadata() {
 
     if [ ! -z "$IMDSV2" ]; then
         local token=$(curl -s -X PUT "http://$metadata_ip/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
-        local token_wrapper='-H "X-aws-ec2-metadata-token: $token"'
+        local token_wrapper=("-H" "X-aws-ec2-metadata-token: $token")
     fi
-    
-    echo `curl -s $token_wrapper http://$metadata_ip/latest/meta-data/$key`
+    echo $(curl -s "${token_wrapper[@]}" http://$metadata_ip/latest/meta-data/$key)
 }
 
 function initialize() {
