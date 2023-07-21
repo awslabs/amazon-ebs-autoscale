@@ -133,7 +133,7 @@ fi
 # make executables available on standard PATH
 mkdir -p /usr/local/amazon-ebs-autoscale/{bin,shared}
 cp ${BASEDIR}/bin/{create-ebs-volume,ebs-autoscale} /usr/local/amazon-ebs-autoscale/bin
-chmod +x /usr/local/amazon-ebs-autoscale/bin/*
+chmod 755 /usr/local/amazon-ebs-autoscale/bin/*
 ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/local/bin/
 ln -sf /usr/local/amazon-ebs-autoscale/bin/* /usr/bin/
 
