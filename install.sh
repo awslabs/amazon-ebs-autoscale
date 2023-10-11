@@ -62,6 +62,9 @@ Options
     --volume-throughput VOLUMETHOUGHPUT
                         Volume throughput for gp3 (default: 125)
 
+    --not-encrypted     Flag to make the volume un-encyrpted. Default is to create
+                        an encrypted volume
+
     --min-ebs-volume-size SIZE_GB
                         Mimimum size in GB of new volumes created by the instance.
                         (Default: 150)
@@ -101,6 +104,7 @@ MAX_EBS_VOLUME_SIZE=1500
 MAX_LOGICAL_VOLUME_SIZE=8000
 MAX_ATTACHED_VOLUMES=16
 INITIAL_UTILIZATION_THRESHOLD=50
+ENCRYPTED=1
 
 DEVICE=""
 FILE_SYSTEM=btrfs
@@ -128,6 +132,10 @@ while (( "$#" )); do
         --volume-throughput)
             VOLUMETHOUGHPUT=$2
             shift 2
+            ;;
+        --not-encrypted)
+            unset ENCRYPTED
+            shift
             ;;
         --min-ebs-volume-size)
             MIN_EBS_VOLUME_SIZE=$2
@@ -220,6 +228,7 @@ cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%VOLUMETYPE%%#${VOLUMETYPE}#" | \
   sed -e "s#%%VOLUMEIOPS%%#${VOLUMEIOPS}#" | \
   sed -e "s#%%VOLUMETHOUGHPUT%%#${VOLUMETHOUGHPUT}#" | \
+  sed -e "s#%%ENCRYPTED%%#${ENCRYPTED}#" | \
   sed -e "s#%%FILESYSTEM%%#${FILE_SYSTEM}#" | \
   sed -e "s#%%MINEBSVOLUMESIZE%%#${MIN_EBS_VOLUME_SIZE}#" | \
   sed -e "s#%%MAXEBSVOLUMESIZE%%#${MAX_EBS_VOLUME_SIZE}#" | \
