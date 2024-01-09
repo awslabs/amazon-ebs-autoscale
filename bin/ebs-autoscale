@@ -32,8 +32,11 @@
 
 initialize
 
+MIN_EBS_VOLUME_SIZE=$(get_config_value .limits.min_ebs_volume_size)
+MAX_EBS_VOLUME_SIZE=$(get_config_value .limits.max_ebs_volume_size)
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
+INITIAL_UTILIZATION_THRESHOLD=$(get_config_value .limits.initial_utilization_threshold)
 
 FILE_SYSTEM=$(get_config_value .filesystem)
 
@@ -86,7 +89,7 @@ get_num_devices() {
         break
       fi
 
-      sleep $(( 2 ** i ))
+      sleep $(( 2 ** i + $RANDOM %3 ))
   done
 
   echo "$attached_volumes"
@@ -96,8 +99,8 @@ calc_threshold() {
   # calculates percent utilization threshold for adding additional ebs volumes
   # as more ebs volumes are added, the threshold level increases
 
-  local num_devices=$(get_num_devices)
-  local threshold=50
+  local num_devices=$1
+  local threshold=${INITIAL_UTILIZATION_THRESHOLD}
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
     threshold=80
@@ -106,7 +109,7 @@ calc_threshold() {
   elif [ "$num_devices" -gt "10" ]; then
     threshold=90
   else
-    threshold=50
+    threshold=${INITIAL_UTILIZATION_THRESHOLD}
   fi
 
   echo ${threshold}
@@ -115,25 +118,42 @@ calc_threshold() {
 calc_new_size() {
   # calculates the size to use for new ebs volumes to expand space
   # new volume sizes increase as the number of attached volumes increase
-  
-  local num_devices=$(get_num_devices)
-  local new_size=150
+  local num_devices=$1
+  #local num_devices=$(get_num_devices)
+  local new_size=$MIN_EBS_VOLUME_SIZE
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
-    new_size=300
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ] && [ "$MIN_EBS_VOLUME_SIZE" -le "299" ]; then
+      new_size=300
+    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "299" ]; then
+      new_size=$MIN_EBS_VOLUME_SIZE
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
-    new_size=1000
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ] && [ "$MIN_EBS_VOLUME_SIZE" -le "999" ]; then
+      new_size=1000
+    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "999" ]; then
+      new_size=$MIN_EBS_VOLUME_SIZE
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   elif [ "$num_devices" -gt "10" ]; then
-    new_size=1500
+    new_size=$MAX_EBS_VOLUME_SIZE
   else
-    new_size=150
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "149" ]; then
+      new_size=$MIN_EBS_VOLUME_SIZE
+    else
+      new_size=$MAX_EBS_VOLUME_SIZE
+    fi
   fi
 
   echo ${new_size}
 }
 
 add_space () {
-  local num_devices=$(get_num_devices)
+  #local num_devices=$(get_num_devices)
+  local num_devices=$1
   if [ "${num_devices}" -ge "$MAX_EBS_VOLUME_COUNT" ]; then
     logthis "No more volumes can be safely added."
     return 0
@@ -141,7 +161,7 @@ add_space () {
 
   local curr_size=$(df -BG ${MOUNTPOINT} | grep ${MOUNTPOINT} | awk '{print $2} ' | cut -d'G' -f1)
   if [ "${curr_size}" -lt "$MAX_LOGICAL_VOLUME_SIZE" ]; then
-    local vol_size=$(calc_new_size)
+    local vol_size=$(calc_new_size ${num_devices})
     logthis "Extending logical volume ${MOUNTPOINT} by ${vol_size}GB"
 
     DEVICE=$(${BASEDIR}/create-ebs-volume --size ${vol_size} --max-attached-volumes ${MAX_EBS_VOLUME_COUNT})
@@ -181,25 +201,29 @@ LOG_COUNT=$LOG_INTERVAL
 # time in seconds between event loops
 # keep this low so that rapid increases in utilization are detected
 DETECTION_INTERVAL=$(get_config_value .detection_interval)
-
-THRESHOLD=$(calc_threshold)
+# get the number of devices once when the script first starts
+NUM_DEVICES=$(get_num_devices)
+THRESHOLD=$(calc_threshold "${NUM_DEVICES}")
 while true; do
-  NUM_DEVICES=$(get_num_devices)
+
   STATS=$(df -BG  ${MOUNTPOINT} | grep -v Filesystem)
   TOTAL_SIZE=$(echo ${STATS} | awk '{print $2}')
   USED=$(echo ${STATS} | awk '{print $3}')
   AVAILABLE=$(echo ${STATS} | awk '{print $4}')
   PCT_UTILIZATION=$(echo ${STATS} | awk '{print $5}' | cut -d"%" -f1 -)
   if  [ $PCT_UTILIZATION -ge "${THRESHOLD}" ]; then
+    # get number of devices only when we need to add more space
+  	NUM_DEVICES=$(get_num_devices)
     logthis "LOW DISK (${PCT_UTILIZATION}%): Adding more."
-    add_space
-    LOG_COUNT=LOG_INTERVAL
+    add_space "$NUM_DEVICES"
+	NUM_DEVICES=$(expr $NUM_DEVICES + 1 )
+    THRESHOLD=$(calc_threshold "$NUM_DEVICES")
+    LOG_COUNT=$LOG_INTERVAL
   fi
   if [ "${LOG_COUNT}" -ge "${LOG_INTERVAL}" ]; then
     logthis "Devices ${NUM_DEVICES} : Size ${TOTAL_SIZE} : Used ${USED} : Available ${AVAILABLE} : Used% ${PCT_UTILIZATION}% : Threshold ${THRESHOLD}%"
     LOG_COUNT=0
   fi
-  THRESHOLD=$(calc_threshold)
   LOG_COUNT=$(expr $LOG_COUNT + 1 )
   sleep $DETECTION_INTERVAL
 done

@@ -39,7 +39,7 @@ aws ec2 run-instances --image-id ami-5253c32d \
   --iam-instance-profile Name=MyInstanceProfileWithProperPermissions
 ```
 
-that installs required packages and runs the initialization script. By default this creates a mount point of `/scratch` on a encrypted 100GB EBS volume. To change the mount point, edit the [cloud-init script](templates/cloud-init-userdata.yaml) file and supply additional options to the install script to suit your specific needs.  Install options are shown below.
+that installs required packages and runs the initialization script. By default this creates a mount point of `/scratch` on a encrypted 200GB gp3 EBS volume. To change the mount point, edit the [cloud-init script](templates/cloud-init-userdata.yaml) file and supply additional options to the install script to suit your specific needs.  Install options are shown below.
 
 ```text
 Install Amazon EBS Autoscale
@@ -62,14 +62,40 @@ Options
 
     -m, --mountpoint    MOUNTPOINT
                         Mount point for autoscale volume (default: /scratch)
+                        
+    -t, --volume-type   VOLUMETYPE
+                        Volume type (default: gp3)
 
-    -s, --initial-size  SIZE
+    --volume-iops       VOLUMEIOPS
+                        Volume IOPS for gp3, io1, io2 (default: 3000)
+
+    --volume-throughput VOLUMETHOUGHPUT
+                        Volume throughput for gp3 (default: 125)
+
+    --min-ebs-volume-size SIZE_GB
+                        Mimimum size in GB of new volumes created by the instance.
+                        (Default: 150)
+
+    --max-ebs-volume-size SIZE_GB
+                        Maximum size in GB of new volumes created by the instance.
+                        (Default: 1500)
+            
+    --max-total-created-size SIZE_GB
+                        Maximum total size in GB of all volumes created by the instance.
+                        (Default: 8000)
+                        
+    --max-attached-volumes N
+                        Maximum number of attached volumes. (Default: 16)
+
+    --initial-utilization-threshold N
+                        Initial disk utilization treshold for scale-up. (Default: 50)
+
+    -s, --initial-size  SIZE_GB
                         Initial size of the volume in GB. (Default: 200)
                         Only used if --initial-device is NOT specified.
-    
-    -t, --volume-type   VOLUMETYPE
-                        EBS volume type to use. (Default: gp3)
 
+    -i, --imdsv2        
+                        Enable imdsv2 for instance metadata API requests.
 ```
 
 ## A note on the IAM Instance Profile
@@ -86,6 +112,7 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
                 "ec2:AttachVolume",
                 "ec2:DescribeVolumeStatus",
                 "ec2:DescribeVolumes",
+                "ec2:DescribeTags",
                 "ec2:ModifyInstanceAttribute",
                 "ec2:DescribeVolumeAttribute",
                 "ec2:CreateVolume",
@@ -97,6 +124,8 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
     ]
 }
 ```
+
+Please note that if you enable EBS encryption and use a Customer Managed Key with AWS Key Management Service, then you should also ensure that you provide [appropriate IAM permissions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#ebs-encryption-permissions) to use that key.
 
 ## License Summary
 
