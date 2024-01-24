@@ -33,7 +33,8 @@ set -e
 . /usr/local/amazon-ebs-autoscale/shared/utils.sh
 initialize
 
-USAGE=$(cat <<EOF
+USAGE=$(
+    cat <<EOF
 Create EBS volume
 
     $0 [options] --size <volume_size_gb>
@@ -75,7 +76,7 @@ if [ "$#" -lt 1 ]; then
 fi
 
 function error() {
-    logthis "Error: $1"
+    logthis "Error: $1" "error"
     echo "Error: $1" >&2
     exit 1
 }
@@ -90,55 +91,55 @@ MAX_CREATED_VOLUMES=$MAX_ATTACHED_VOLUMES
 
 # parse options
 PARAMS=""
-while (( "$#" )); do
+while (("$#")); do
     case "$1" in
-        -s|--size)
-            SIZE=$2
-            shift 2
-            ;;
-        -t|--type)
-            TYPE=$2
-            shift 2
-            ;;
-        -i|--iops)
-            IOPS=$2
-            shift 2
-            ;;
-        --throughput)
-            THROUGHPUT=$2
-            shift 2
-            ;;
-        --not-encrypted)
-            unset ENCRYPTED
-            shift
-            ;;
-        --max-total-created-size)
-            MAX_LOGICAL_VOLUME_SIZE=$2
-            shift 2
-            ;;
-        --max-attached-volumes)
-            MAX_ATTACHED_VOLUMES=$2
-            shift 2
-            ;;
-        --max-created-volumes)
-            MAX_CREATED_VOLUMES=$2
-            shift 2
-            ;;
-        -v|--verbose)
-            VERBOSE=1
-            shift
-            ;;
-        --) # end parsing
-            shift
-            break
-            ;;
-        -*|--*=)
-            error "unsupported argument $1"
-            ;;
-        *) # positional arguments
-            PARAMS="$PARAMS $1"
-            shift
-            ;;
+    -s | --size)
+        SIZE=$2
+        shift 2
+        ;;
+    -t | --type)
+        TYPE=$2
+        shift 2
+        ;;
+    -i | --iops)
+        IOPS=$2
+        shift 2
+        ;;
+    --throughput)
+        THROUGHPUT=$2
+        shift 2
+        ;;
+    --not-encrypted)
+        unset ENCRYPTED
+        shift
+        ;;
+    --max-total-created-size)
+        MAX_LOGICAL_VOLUME_SIZE=$2
+        shift 2
+        ;;
+    --max-attached-volumes)
+        MAX_ATTACHED_VOLUMES=$2
+        shift 2
+        ;;
+    --max-created-volumes)
+        MAX_CREATED_VOLUMES=$2
+        shift 2
+        ;;
+    -v | --verbose)
+        VERBOSE=1
+        shift
+        ;;
+    --) # end parsing
+        shift
+        break
+        ;;
+    -* | --*=)
+        error "unsupported argument $1"
+        ;;
+    *) # positional arguments
+        PARAMS="$PARAMS $1"
+        shift
+        ;;
     esac
 done
 
@@ -152,7 +153,7 @@ if [[ ! "$SIZE" ]]; then
     error "missing required argument --size"
 fi
 
-alphabet=( {a..z} )
+alphabet=({a..z})
 
 function get_next_logical_device() {
     for letter in ${alphabet[@]}; do
@@ -175,32 +176,32 @@ function create_and_attach_volume() {
     # Output Example:
     # {Key=Name,Value=Jenkins},{Key=Owner,Value=DevOps}
     instance_tags=$(
-      aws ec2 describe-tags \
-        --region $region \
-        --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws:[^}]*}//g ; s/,\{2,\}/,/g ; s/,$//g ; s/^,//g'
-      )
+        aws ec2 describe-tags \
+            --region $region \
+            --filters "Name=resource-id,Values=$instance_id" | jq -r .Tags | jq -c 'map({Key, Value})' | tr -d '[]"' | sed 's/{Key:/{Key=/g ; s/,Value:/,Value=/g ; s/{Key=aws:[^}]*}//g ; s/,\{2,\}/,/g ; s/,$//g ; s/^,//g'
+    )
 
     local max_attempts=10
     local attached_volumes=""
 
-    for i in $(eval echo "{0..$max_attempts}") ; do
+    for i in $(eval echo "{0..$max_attempts}"); do
         attached_volumes=$(
-          aws ec2 describe-volumes \
-            --region $region \
-            --filters "Name=attachment.instance-id,Values=$instance_id"
+            aws ec2 describe-volumes \
+                --region $region \
+                --filters "Name=attachment.instance-id,Values=$instance_id"
         )
 
         if [ $? -eq 0 ]; then
-             break
+            break
         elif [ $i -eq $max_attempts ]; then
             logthis "Could not determine the number of attached_volumes after $i attempts. Last response was: $attached_volumes"
             break
         fi
-        sleep $(( 2 ** i + $RANDOM % 3))
+        sleep $((2 ** i + $RANDOM % 3))
     done
 
     local created_volumes=""
-    for i in $(eval echo "{0..$max_attempts}") ; do
+    for i in $(eval echo "{0..$max_attempts}"); do
         created_volumes=$(
             aws ec2 describe-volumes \
                 --region $region \
@@ -208,16 +209,16 @@ function create_and_attach_volume() {
         )
 
         if [ $? -eq 0 ]; then
-             break
+            break
         elif [ $i -eq $max_attempts ]; then
             logthis "Could not determine the number of created_volumes after $i attempts. Last response was: $created_volumes"
             break
         fi
-        sleep $(( 2 ** i + $RANDOM % 3))
+        sleep $((2 ** i + $RANDOM % 3))
     done
 
     local total_created_size=""
-    for i in $(eval echo "{0..$max_attempts}") ; do
+    for i in $(eval echo "{0..$max_attempts}"); do
         total_created_size=$(
             aws ec2 describe-volumes \
                 --region $region \
@@ -227,12 +228,12 @@ function create_and_attach_volume() {
         )
 
         if [ $? -eq 0 ]; then
-             break
+            break
         elif [ $i -eq $max_attempts ]; then
             logthis "Could not determine the total_created_size after $i attempts. Last response was: $total_created_size"
             break
         fi
-        sleep $(( 2 ** i + $RANDOM % 3))
+        sleep $((2 ** i + $RANDOM % 3))
     done
 
     # check how much EBS storage this instance has created
@@ -241,15 +242,15 @@ function create_and_attach_volume() {
     fi
 
     # check how many volumes this instance has created
-    if [ "`echo $created_volumes | jq '.Volumes | length'`" -ge "$MAX_CREATED_VOLUMES" ]; then
+    if [ "$(echo $created_volumes | jq '.Volumes | length')" -ge "$MAX_CREATED_VOLUMES" ]; then
         error "maximum number of created volumes reached ($MAX_CREATED_VOLUMES)"
     fi
 
     # check how many volumes are currently attached
-    if [ "`echo $attached_volumes | jq '.Volumes | length'`" -ge "$MAX_ATTACHED_VOLUMES" ]; then
+    if [ "$(echo $attached_volumes | jq '.Volumes | length')" -ge "$MAX_ATTACHED_VOLUMES" ]; then
         error "maximum number of attached volumes reached ($MAX_ATTACHED_VOLUMES)"
     fi
-    
+
     # check if there are available device names
     local device=$(get_next_logical_device)
     if [ -z "$device" ]; then
@@ -260,49 +261,52 @@ function create_and_attach_volume() {
     # create the volume
     local tmpfile=$(mktemp /tmp/ebs-autoscale.create-volume.XXXXXXXXXX)
     local volume_opts="--size $SIZE --volume-type $TYPE"
-    local IOPS_TYPES=( io1 io2 gp3 )
+    local IOPS_TYPES=(io1 io2 gp3)
     if [[ " ${IOPS_TYPES[*]} " =~ " ${TYPE} " ]]; then volume_opts="$volume_opts --iops $IOPS"; fi
     if [ "$TYPE" == "gp3" ]; then volume_opts="$volume_opts --throughput $THROUGHPUT"; fi
     if [ "$ENCRYPTED" == "1" ]; then volume_opts="$volume_opts --encrypted"; fi
-    local timestamp=$(date "+%F %T UTC%z")  # YYYY-mm-dd HH:MM:SS UTC+0000
+    local timestamp=$(date "+%F %T UTC%z") # YYYY-mm-dd HH:MM:SS UTC+0000
 
     local volume=""
-    for i in $(eval echo "{0..$max_attempts}") ; do
+    for i in $(eval echo "{0..$max_attempts}"); do
 
-      # The $instance_tags variable could be empty and will cause a TagSpecifications[0].Tags[0] error if
-      # it is passed as an empty value because it must be comma-separated from the other key-value pairs.
-      # Use a Shell Parameter Expansion to determine if the variable contains a value or not. If it has a value, 
-      # append a comma at the end so the aws cli syntax is compliant when it is subbed into the tag_specification variable.
-      local instance_tags=${instance_tags:+${instance_tags},}
-      local tag_specification="ResourceType=volume,Tags=[$instance_tags{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
+        # The $instance_tags variable could be empty and will cause a TagSpecifications[0].Tags[0] error if
+        # it is passed as an empty value because it must be comma-separated from the other key-value pairs.
+        # Use a Shell Parameter Expansion to determine if the variable contains a value or not. If it has a value,
+        # append a comma at the end so the aws cli syntax is compliant when it is subbed into the tag_specification variable.
+        local instance_tags=${instance_tags:+${instance_tags},}
+        local tag_specification="ResourceType=volume,Tags=[$instance_tags{Key=source-instance,Value=$instance_id},{Key=amazon-ebs-autoscale-creation-time,Value=$timestamp}]"
 
-      # Note: Shellcheck says the $vars in this command should be double quoted to prevent globbing and word-splitting,
-      # but this ends up making the '--encrypted' argument to fail during the execution of the install script. Conversely, NOT putting double-quotes
-      # around $tag_specification causes a parsing error due to the space in the $timestamp value (added to $tag_specification above).
+        # Note: Shellcheck says the $vars in this command should be double quoted to prevent globbing and word-splitting,
+        # but this ends up making the '--encrypted' argument to fail during the execution of the install script. Conversely, NOT putting double-quotes
+        # around $tag_specification causes a parsing error due to the space in the $timestamp value (added to $tag_specification above).
 
-      local volume=$(\
-          aws ec2 create-volume \
-              --region $region \
-              --availability-zone $availability_zone \
-              $volume_opts \
-              --tag-specification "$tag_specification" \
-          2> $tmpfile
-      )
+        local volume=$(
+            aws ec2 create-volume \
+                --region $region \
+                --availability-zone $availability_zone \
+                $volume_opts \
+                --tag-specification "$tag_specification" \
+                2>$tmpfile
+        )
 
-      if [ $? -eq 0 ]; then
-           break
-      elif [ $i -eq $max_attempts ]; then
-          logthis "Could not create a volume after $i attempts. Last response was: $volume"
-          break
-      fi
-      sleep $(( 2 ** i + $RANDOM % 3))
+        if [ $? -eq 0 ]; then
+            logthis "volume created successfully"
+            break
+        elif [ $i -eq $max_attempts ]; then
+            logthis "Could not create a volume after $i attempts. Last response was: $volume" "error"
+            break
+        else
+            logthis "Attempt $i: Could not create volume, will retry. Error: $volume" "error"
+        fi
+        sleep $((2 ** i + $RANDOM % 3))
     done
 
-    local volume_id=`echo $volume | jq -r '.VolumeId'`
+    local volume_id=$(echo $volume | jq -r '.VolumeId')
 
     if [ -z "$volume_id" ]; then
-        logthis "$(cat $tmpfile)"  # log captured error
-        cat $tmpfile               # print captured error (e.g. when called during install)
+        logthis "$(cat $tmpfile)" # log captured error
+        cat $tmpfile              # print captured error (e.g. when called during install)
         rm $tmpfile
 
         error "could not create volume"
@@ -312,11 +316,11 @@ function create_and_attach_volume() {
     logthis "created volume: $volume_id [ $volume_opts ]"
 
     # In theory this shouldn't need to loop as aws ec2 wait will retry but I have seen it exceed request limits
-    for i in {1..3} ; do
-       if aws ec2 wait volume-available --region $region --volume-ids $volume_id; then
-         logthis "volume $volume_id available"
-         break
-       fi
+    for i in {1..3}; do
+        if aws ec2 wait volume-available --region $region --volume-ids $volume_id; then
+            logthis "volume $volume_id available"
+            break
+        fi
     done
 
     # Need to assure that the created volume is successfully attached to be
@@ -330,16 +334,16 @@ function create_and_attach_volume() {
         --device $device \
         --instance-id $instance_id \
         --volume-id $volume_id \
-    > /dev/null
-    
+        >/dev/null
+
     status="$?"
     if [ ! "$status" -eq 0 ]; then
         logthis "deleting volume $volume_id"
         aws ec2 delete-volume \
             --region $region \
             --volume-id $volume_id \
-        > /dev/null
-        
+            >/dev/null
+
         error "could not attach volume to instance"
     fi
     set -e
@@ -358,7 +362,7 @@ function create_and_attach_volume() {
         --region $region \
         --instance-id $instance_id \
         --block-device-mappings "DeviceName=$device,Ebs={DeleteOnTermination=true,VolumeId=$volume_id}" \
-    > /dev/null
+        >/dev/null
     logthis "volume $volume_id DeleteOnTermination ENABLED"
 
     echo $device
