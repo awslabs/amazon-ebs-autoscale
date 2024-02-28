@@ -32,9 +32,11 @@
 
 initialize
 
+MIN_EBS_VOLUME_SIZE=$(get_config_value .limits.min_ebs_volume_size)
 MAX_EBS_VOLUME_SIZE=$(get_config_value .limits.max_ebs_volume_size)
 MAX_LOGICAL_VOLUME_SIZE=$(get_config_value .limits.max_logical_volume_size)
 MAX_EBS_VOLUME_COUNT=$(get_config_value .limits.max_ebs_volume_count)
+INITIAL_UTILIZATION_THRESHOLD=$(get_config_value .limits.initial_utilization_threshold)
 
 FILE_SYSTEM=$(get_config_value .filesystem)
 
@@ -98,7 +100,7 @@ calc_threshold() {
   # as more ebs volumes are added, the threshold level increases
 
   local num_devices=$1
-  local threshold=50
+  local threshold=${INITIAL_UTILIZATION_THRESHOLD}
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
     threshold=80
@@ -107,7 +109,7 @@ calc_threshold() {
   elif [ "$num_devices" -gt "10" ]; then
     threshold=90
   else
-    threshold=50
+    threshold=${INITIAL_UTILIZATION_THRESHOLD}
   fi
 
   echo ${threshold}
@@ -118,29 +120,29 @@ calc_new_size() {
   # new volume sizes increase as the number of attached volumes increase
   local num_devices=$1
   #local num_devices=$(get_num_devices)
-  local new_size=150
+  local new_size=$MIN_EBS_VOLUME_SIZE
 
   if [ "$num_devices" -ge "4" ] && [ "$num_devices" -le "6" ]; then
-    if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ]; then
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "299" ] && [ "$MIN_EBS_VOLUME_SIZE" -le "299" ]; then
       new_size=300
+    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "299" ]; then
+      new_size=$MIN_EBS_VOLUME_SIZE
     else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi
   elif [ "$num_devices" -gt "6" ] && [ "$num_devices" -le "10" ]; then
-    if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ]; then
+    if [ "$MAX_EBS_VOLUME_SIZE" -ge "999" ] && [ "$MIN_EBS_VOLUME_SIZE" -le "999" ]; then
       new_size=1000
+    elif [ "$MIN_EBS_VOLUME_SIZE" -ge "999" ]; then
+      new_size=$MIN_EBS_VOLUME_SIZE
     else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi
   elif [ "$num_devices" -gt "10" ]; then
-    if [ "$MAX_EBS_VOLUME_SIZE" -ge "1499" ]; then
-      new_size=1500
-    else
-      new_size=$MAX_EBS_VOLUME_SIZE
-    fi
+    new_size=$MAX_EBS_VOLUME_SIZE
   else
     if [ "$MAX_EBS_VOLUME_SIZE" -ge "149" ]; then
-      new_size=150
+      new_size=$MIN_EBS_VOLUME_SIZE
     else
       new_size=$MAX_EBS_VOLUME_SIZE
     fi

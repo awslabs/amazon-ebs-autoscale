@@ -28,10 +28,22 @@
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
+function get_metadata() {
+    local key=$1
+    local metadata_ip='169.254.169.254'
+
+    if [ ! -z "$IMDSV2" ]; then
+        local token=$(curl -s -X PUT "http://$metadata_ip/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+        local token_wrapper='-H "X-aws-ec2-metadata-token: $token"'
+    fi
+    
+    echo `curl -s $token_wrapper http://$metadata_ip/latest/meta-data/$key`
+}
+
 function initialize() {
-    export AWS_AZ=$(curl -s  http://169.254.169.254/latest/meta-data/placement/availability-zone/)
+    export AWS_AZ=$(get_metadata placement/availability-zone)
     export AWS_REGION=$(echo ${AWS_AZ} | sed -e 's/[a-z]$//')
-    export INSTANCE_ID=$(curl -s  http://169.254.169.254/latest/meta-data/instance-id)
+    export INSTANCE_ID=$(get_metadata instance-id)
     export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 }
 
@@ -49,11 +61,6 @@ function get_config_value() {
     local filter=$1
 
     jq -r $filter $EBS_AUTOSCALE_CONFIG_FILE
-}
-
-function get_metadata() {
-    local key=$1
-    echo `curl -s http://169.254.169.254/latest/meta-data/$key`
 }
 
 function logthis() {

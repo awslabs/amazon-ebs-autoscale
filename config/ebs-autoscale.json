@@ -2,19 +2,22 @@
     "mountpoint": "%%MOUNTPOINT%%",
     "filesystem": "%%FILESYSTEM%%",
     "lvm": {
-      "volume_group": "autoscale_vg",
-      "logical_volume": "autoscale_lv"
+        "volume_group": "autoscale_vg",
+        "logical_volume": "autoscale_lv"
     },
     "volume": {
         "type": "%%VOLUMETYPE%%",
-        "iops": 3000,
+        "iops": "%%VOLUMEIOPS%%",
+        "throughput": "%%VOLUMETHOUGHPUT%%",
         "encrypted": 1
     },
     "detection_interval": 2,
     "limits": {
-        "max_ebs_volume_size": 1500,
-        "max_logical_volume_size": 8000,
-        "max_ebs_volume_count": 16
+        "min_ebs_volume_size": "%%MINEBSVOLUMESIZE%%",
+        "max_ebs_volume_size": "%%MAXEBSVOLUMESIZE%%",
+        "max_logical_volume_size": "%%MAXLOGICALVOLUMESIZE%%",
+        "max_ebs_volume_count": "%%MAXATTACHEDVOLUMES%%",
+        "initial_utilization_threshold": "%%INITIALUTILIZATIONTHRESHOLD%%"
     },
     "logging": {
         "log_file": "/var/log/ebs-autoscale.log",
