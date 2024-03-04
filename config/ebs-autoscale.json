@@ -1,6 +1,7 @@
 {
     "mountpoint": "%%MOUNTPOINT%%",
     "filesystem": "%%FILESYSTEM%%",
+    "imdsv2": "%%IMDSV2%%",
     "lvm": {
         "volume_group": "autoscale_vg",
         "logical_volume": "autoscale_lv"
