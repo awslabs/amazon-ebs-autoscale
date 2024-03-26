@@ -127,6 +127,31 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
 
 Please note that if you enable EBS encryption and use a Customer Managed Key with AWS Key Management Service, then you should also ensure that you provide [appropriate IAM permissions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#ebs-encryption-permissions) to use that key.
 
+
+## A note on the Instance Storage
+
+Here is an example script to leverage instance storage.
+
+```
+## Check for instance storage
+echo "-- Check for instance storage --"
+/opt/amazon-ebs-autoscale/instance_storage_checker.sh 2>&1 >> /var/log/ebs-autoscale-install.log
+## Install ebs-autoscale
+echo "-- Installing EBS AutoScaler --"
+if [ -f instance_storage_device.txt ]; then
+    INSTANCE_STORAGE=$(cat instance_storage_device.txt)
+    /opt/amazon-ebs-autoscale/install.sh \
+    --initial-device $INSTANCE_STORAGE \
+    --initial-utilization-threshold 90 \
+    --mountpoint /var/lib/docker \
+    2>&1 >> /var/log/ebs-autoscale-install.log
+else
+    /opt/amazon-ebs-autoscale/install.sh \
+    —mount point /var/lib/docker 2>&1 >> /var/log/ebs-autoscale-install.log
+fi
+```
+
+
 ## License Summary
 
 This sample code is made available under the MIT license. 
