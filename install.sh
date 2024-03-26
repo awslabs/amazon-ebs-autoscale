@@ -227,7 +227,7 @@ cat ${BASEDIR}/config/ebs-autoscale.json | \
   sed -e "s#%%MAXLOGICALVOLUMESIZE%%#${MAX_LOGICAL_VOLUME_SIZE}#" | \
   sed -e "s#%%MAXATTACHEDVOLUMES%%#${MAX_ATTACHED_VOLUMES}#" | \
   sed -e "s#%%INITIALUTILIZATIONTHRESHOLD%%#${INITIAL_UTILIZATION_THRESHOLD}#" | \
-  sed -e "s#%%IMDSV2%%#${IMDSV2}#"
+  sed -e "s#%%IMDSV2%%#${IMDSV2}#" \
   > /etc/ebs-autoscale.json
 
 ## Create filesystem
