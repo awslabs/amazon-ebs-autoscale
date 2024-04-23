@@ -79,7 +79,7 @@ Options
     --volume-iops       VOLUMEIOPS
                         Volume IOPS for gp3, io1, io2 (default: 3000)
 
-    --volume-throughput VOLUMETHOUGHPUT
+    --volume-throughput VOLUMETHROUGHPUT
                         Volume throughput for gp3 (default: 125)
 
     --min-ebs-volume-size SIZE_GB
