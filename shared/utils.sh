@@ -49,9 +49,12 @@ function detect_init_system() {
     # detects the init system in use
     # based on the following:
     # https://unix.stackexchange.com/a/164092
-    if [[ `/sbin/init --version` =~ upstart ]]; then echo upstart;
-    elif [[ `systemctl` =~ -\.mount ]]; then echo systemd;
-    elif [[ -f /etc/init.d/cron && ! -h /etc/init.d/cron ]]; then echo sysv-init;
+    if [[ $(/sbin/init --version) =~ upstart ]]; then
+        echo upstart
+    elif [[ $(systemctl) =~ -\.mount ]]; then
+        echo systemd
+    elif [[ -f /etc/init.d/cron && ! -L /etc/init.d/cron ]]; then
+        echo sysv-init
     else echo unknown; fi
 }
 
@@ -62,7 +65,20 @@ function get_config_value() {
 }
 
 function logthis() {
-    echo "[`date`] $1" >> $(get_config_value .logging.log_file)
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%6N%:z")
+    if [ $# -eq 2 ]; then
+        level=$2
+    else
+        level="info"
+    fi
+
+    if command -v logger &>/dev/null; then
+        message="level=${level} msg=$1"
+        echo "$message" | tee -a $(get_config_value .logging.log_file) | logger -t ebs-autoscale
+    else
+        message="${timestamp} hostname=$(hostname -s) service=ebs-autoscale level=${level} msg=$1"
+        echo "$message" >>$(get_config_value .logging.log_file)
+    fi
 }
 
 function starting() {

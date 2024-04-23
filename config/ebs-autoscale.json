@@ -10,7 +10,7 @@
         "type": "%%VOLUMETYPE%%",
         "iops": "%%VOLUMEIOPS%%",
         "throughput": "%%VOLUMETHOUGHPUT%%",
-        "encrypted": 1
+        "encrypted": "%%ENCRYPTED%%"
     },
     "detection_interval": 2,
     "limits": {
