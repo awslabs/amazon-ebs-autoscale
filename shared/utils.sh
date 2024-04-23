@@ -34,17 +34,15 @@ function get_metadata() {
 
     if [ ! -z "$IMDSV2" ]; then
         local token=$(curl -s -X PUT "http://$metadata_ip/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
-        local token_wrapper='-H "X-aws-ec2-metadata-token: $token"'
     fi
-
-    echo $(curl -s $token_wrapper http://$metadata_ip/latest/meta-data/$key)
+    
+    echo $(curl -s -H "X-aws-ec2-metadata-token: $token" http://$metadata_ip/latest/meta-data/$key)
 }
 
 function initialize() {
     export AWS_AZ=$(get_metadata placement/availability-zone)
     export AWS_REGION=$(echo ${AWS_AZ} | sed -e 's/[a-z]$//')
     export INSTANCE_ID=$(get_metadata instance-id)
-    export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 }
 
 function detect_init_system() {

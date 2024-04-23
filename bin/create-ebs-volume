@@ -31,6 +31,8 @@
 set -e
 
 . /usr/local/amazon-ebs-autoscale/shared/utils.sh
+export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
+IMDSV2=$(get_config_value .imdsv2)
 initialize
 
 USAGE=$(

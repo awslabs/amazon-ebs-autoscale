@@ -1,3 +1,13 @@
+:warning: __DEPRECATION NOTICE__ :warning:
+
+THIS REPOSITORY IS DEPRECATED AND WILL BE ARCHIVED ON MAY 17, 2024
+
+This repository is no longer actively maintained and will be archived on May 17, 2024. As archived code, it remains publicly available for historical reference purposes only.
+
+For alternative and fully managed solutions for scalable storage in AWS you should consider:
+- [Mountpoint for Amazon S3](https://aws.amazon.com/s3/features/mountpoint/?nc=sn&loc=2)
+- [Amazon Elastic File System (Amazon EFS)](https://aws.amazon.com/efs/)
+
 # Amazon Elastic Block Store Autoscale
 
 This is an example of a daemon process that monitors a filesystem mountpoint and automatically expands it when free space falls below a configured threshold. New [Amazon EBS](https://aws.amazon.com/ebs/) volumes are added to the instance as necessary and the underlying filesystem ([BTRFS](http://btrfs.wiki.kernel.org) or [LVM](https://en.wikipedia.org/wiki/Logical_Volume_Manager_(Linux)) with [ext4](https://en.wikipedia.org/wiki/Ext4)) expands as new devices are added.
@@ -130,6 +140,31 @@ In the above, we assume that the `MyInstanceProfileWithProperPermissions` EC2 In
 ```
 
 Please note that if you enable EBS encryption and use a Customer Managed Key with AWS Key Management Service, then you should also ensure that you provide [appropriate IAM permissions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html#ebs-encryption-permissions) to use that key.
+
+
+## A note on the Instance Storage
+
+Here is an example script to leverage instance storage.
+
+```
+## Check for instance storage
+echo "-- Check for instance storage --"
+/opt/amazon-ebs-autoscale/instance_storage_checker.sh 2>&1 >> /var/log/ebs-autoscale-install.log
+## Install ebs-autoscale
+echo "-- Installing EBS AutoScaler --"
+if [ -f instance_storage_device.txt ]; then
+    INSTANCE_STORAGE=$(cat instance_storage_device.txt)
+    /opt/amazon-ebs-autoscale/install.sh \
+    --initial-device $INSTANCE_STORAGE \
+    --initial-utilization-threshold 90 \
+    --mountpoint /var/lib/docker \
+    2>&1 >> /var/log/ebs-autoscale-install.log
+else
+    /opt/amazon-ebs-autoscale/install.sh \
+    —mount point /var/lib/docker 2>&1 >> /var/log/ebs-autoscale-install.log
+fi
+```
+
 
 ## License Summary
 

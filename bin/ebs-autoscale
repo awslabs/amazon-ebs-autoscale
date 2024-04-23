@@ -30,7 +30,7 @@
 
 . /usr/local/amazon-ebs-autoscale/shared/utils.sh
 
-initialize
+export EBS_AUTOSCALE_CONFIG_FILE=/etc/ebs-autoscale.json
 
 MIN_EBS_VOLUME_SIZE=$(get_config_value .limits.min_ebs_volume_size)
 MAX_EBS_VOLUME_SIZE=$(get_config_value .limits.max_ebs_volume_size)
@@ -45,6 +45,11 @@ LVM_LV=$(get_config_value .lvm.logical_volume)
 
 MOUNTPOINT=$(get_config_value .mountpoint)
 BASEDIR=$(dirname $0)
+
+IMDSV2=$(get_config_value .imdsv2)
+logthis "IMDSV2 = ${IMDSV2}"
+
+initialize
 
 starting
 trap "stopping; exit" INT TERM KILL
